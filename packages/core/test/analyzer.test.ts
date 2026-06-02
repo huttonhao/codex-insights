@@ -26,20 +26,22 @@ describe("analyzeSession", () => {
       metrics: {
         toolCalls: 3,
         filesTouched: 2,
-        testsRun: 5,
+        testsRunKnown: true,
+        testsRunCount: 5,
         warnings: 1
       },
       trend: {
         kind: "baseline"
       }
     });
+    expect(report.schemaVersion).toBe("2.0");
     expect(report.summary.narrative).toContain("3 tool calls");
     expect(report.recommendations).toContain(
-      "Review warnings before treating this session as complete."
+      "Keep saving reports to build a useful trend history."
     );
   });
 
-  it("recommends adding tests when no tests were run", () => {
+  it("records unknown test evidence when command evidence is absent", () => {
     const report = analyzeSession({
       sessionId: "session-2",
       repository: {
@@ -48,14 +50,23 @@ describe("analyzeSession", () => {
       },
       generatedAt: "2026-06-02T09:00:00.000Z",
       locale: "en-US",
-      toolCalls: [],
-      filesTouched: [],
-      testsRun: 0,
-      warnings: []
+      toolCalls: Array.from([]),
+      filesTouched: Array.from([]),
+      warnings: Array.from([])
     });
 
+    expect(report.metrics.testsRunKnown).toBe(false);
+    expect(report.metrics.testsRunCount).toBeUndefined();
+    expect(report.dataQuality).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          source: "test-evidence",
+          status: "unavailable"
+        })
+      ])
+    );
     expect(report.recommendations).toContain(
-      "Run a focused verification command before closing the work."
+      "Capture session command evidence so future reports can distinguish unknown test execution from no test execution."
     );
   });
 });

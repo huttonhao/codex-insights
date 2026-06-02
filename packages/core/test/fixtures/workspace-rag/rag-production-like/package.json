@@ -1,0 +1,14 @@
+{
+  "name": "rag-production-like",
+  "version": "1.0.0",
+  "dependencies": {
+    "pgvector": "^0.2.0",
+    "openai": "^4.0.0",
+    "cohere-ai": "^7.0.0"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "build": "tsc -p tsconfig.json",
+    "lint": "eslint src"
+  }
+}

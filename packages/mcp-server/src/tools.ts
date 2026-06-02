@@ -1,27 +1,57 @@
 import {
-  analyzeSession,
-  renderInsightsReport,
+  compareReportTrends,
+  generateInsightsReport,
+  loadLatestComparableReport,
+  renderInsightsMarkdown,
   resolveLocale,
+  runDoctor,
   saveReportSnapshot,
   supportedLocales,
+  type DataQuality,
+  type DoctorResult,
+  type InsightReport,
   type SupportedLocale
 } from "../../core/src/index.js";
 
-export interface SessionInsightsArgs {
+export type McpInsightFormat = "json" | "markdown";
+
+export interface BaseInsightsArgs {
   locale?: string;
   save?: boolean;
   cwd?: string;
   now?: string;
+  deep?: boolean;
+  topics?: string[];
+  format?: McpInsightFormat;
 }
 
-export interface SessionInsightsResult {
+export interface SessionInsightsArgs extends BaseInsightsArgs {
+  sessionFile?: string;
+  sessionJson?: string;
+}
+
+export interface RepoInsightsArgs extends BaseInsightsArgs {
+  repoPath?: string;
+}
+
+export interface WorkspaceInsightsArgs extends BaseInsightsArgs {
+  workspacePath?: string;
+  maxProjects?: number;
+  maxFilesPerProject?: number;
+  maxFileBytes?: number;
+}
+
+export interface InsightsToolResult {
   locale: SupportedLocale;
-  format: "html";
-  content: string;
+  format: McpInsightFormat;
+  report: InsightReport;
+  dataQuality: DataQuality[];
+  warnings: string[];
   saved?: {
     jsonPath: string;
-    htmlPath: string;
+    markdownPath?: string;
   };
+  markdownSummary?: string;
 }
 
 export function listSupportedLocales(): {
@@ -36,33 +66,106 @@ export function listSupportedLocales(): {
 
 export async function getSessionInsights(
   args: SessionInsightsArgs = {}
-): Promise<SessionInsightsResult> {
+): Promise<InsightsToolResult> {
   const cwd = args.cwd ?? process.cwd();
-  const resolved = resolveLocale({
+  return buildResult({
+    args,
+    report: await generateInsightsReport({
+      mode: "session",
+      locale: resolve(args).locale,
+      repoPath: cwd,
+      sessionFile: args.sessionFile,
+      sessionJson: args.sessionJson,
+      deep: args.deep,
+      topics: args.topics,
+      now: args.now
+    })
+  });
+}
+
+export async function getRepoInsights(
+  args: RepoInsightsArgs = {}
+): Promise<InsightsToolResult> {
+  const cwd = args.cwd ?? process.cwd();
+  return buildResult({
+    args,
+    report: await generateInsightsReport({
+      mode: "repo",
+      locale: resolve(args).locale,
+      repoPath: args.repoPath ?? cwd,
+      deep: args.deep,
+      topics: args.topics,
+      now: args.now
+    })
+  });
+}
+
+export async function getWorkspaceInsights(
+  args: WorkspaceInsightsArgs = {}
+): Promise<InsightsToolResult> {
+  const cwd = args.cwd ?? process.cwd();
+  return buildResult({
+    args,
+    report: await generateInsightsReport({
+      mode: "workspace",
+      locale: resolve(args).locale,
+      workspacePath: args.workspacePath ?? cwd,
+      deep: args.deep,
+      topics: args.topics,
+      now: args.now,
+      maxProjects: args.maxProjects,
+      maxFilesPerProject: args.maxFilesPerProject,
+      maxFileBytes: args.maxFileBytes
+    })
+  });
+}
+
+export async function doctor(args: { cwd?: string } = {}): Promise<DoctorResult> {
+  return runDoctor({ cwd: args.cwd ?? process.cwd() });
+}
+
+async function buildResult(input: {
+  args: BaseInsightsArgs;
+  report: InsightReport;
+}): Promise<InsightsToolResult> {
+  const format = input.args.format ?? "markdown";
+  const previous = await loadLatestComparableReport(input.report);
+  if (previous) {
+    input.report.trend = compareReportTrends(previous, input.report);
+  }
+  const markdownSummary =
+    format === "markdown"
+      ? renderInsightsMarkdown(input.report, input.report.locale)
+      : undefined;
+  const saved =
+    input.args.save === false
+      ? undefined
+      : await saveReportSnapshot({
+          report: input.report,
+          markdown: markdownSummary
+        });
+
+  return {
+    locale: input.report.locale,
+    format,
+    report: input.report,
+    dataQuality: input.report.dataQuality,
+    warnings: input.report.dataQuality
+      .filter((item) => item.status !== "ok")
+      .map((item) => item.reason),
+    saved: saved
+      ? {
+          jsonPath: saved.jsonPath,
+          markdownPath: saved.markdownPath
+        }
+      : undefined,
+    markdownSummary
+  };
+}
+
+function resolve(args: BaseInsightsArgs): { locale: SupportedLocale } {
+  return resolveLocale({
     requestedLocale: args.locale ?? "auto",
     envLocale: process.env.LANG
   });
-  const report = analyzeSession({
-    sessionId: "current-session",
-    repository: {
-      root: cwd,
-      name: cwd.split(/[\\/]/).filter(Boolean).at(-1) ?? "workspace"
-    },
-    generatedAt: args.now ?? new Date().toISOString(),
-    locale: resolved.locale,
-    toolCalls: [],
-    filesTouched: [],
-    testsRun: 0,
-    warnings: []
-  });
-  const content = renderInsightsReport(report, resolved.locale);
-  const saved =
-    args.save === false ? undefined : await saveReportSnapshot({ report, html: content });
-
-  return {
-    locale: resolved.locale,
-    format: "html",
-    content,
-    saved
-  };
 }

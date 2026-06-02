@@ -1,0 +1,47 @@
+{
+  "sessionId": "session-with-tools",
+  "startedAt": "2026-06-02T08:00:00.000Z",
+  "endedAt": "2026-06-02T08:40:00.000Z",
+  "userPrompts": [
+    "Generate a report",
+    "Run tests"
+  ],
+  "assistantActions": [
+    "Inspected repository",
+    "Updated renderer"
+  ],
+  "toolCalls": [
+    {
+      "name": "exec_command",
+      "arguments": {
+        "cmd": "npm test"
+      },
+      "startedAt": "2026-06-02T08:20:00.000Z",
+      "completedAt": "2026-06-02T08:21:00.000Z",
+      "exitCode": 0
+    }
+  ],
+  "commands": [
+    {
+      "command": "npm test",
+      "exitCode": 0,
+      "startedAt": "2026-06-02T08:20:00.000Z",
+      "completedAt": "2026-06-02T08:21:00.000Z"
+    },
+    {
+      "command": "npm run build",
+      "exitCode": 0,
+      "startedAt": "2026-06-02T08:22:00.000Z",
+      "completedAt": "2026-06-02T08:23:00.000Z"
+    }
+  ],
+  "fileEdits": [
+    {
+      "path": "packages/core/src/i18n/outputRenderer.ts",
+      "operation": "update"
+    }
+  ],
+  "warnings": [
+    "Renderer still needs deep topic sections"
+  ]
+}

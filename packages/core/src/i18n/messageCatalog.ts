@@ -1,7 +1,12 @@
-import type { InsightMetrics } from "../insights/reportModel.js";
 import type { SupportedLocale } from "./localeResolver.js";
 import { enUS } from "./locales/en-US.js";
 import { zhCN } from "./locales/zh-CN.js";
+
+export type MetricMessageKey =
+  | "projectsScanned"
+  | "filesScanned"
+  | "testsRun"
+  | "warnings";
 
 export interface MessageCatalog {
   title: string;
@@ -11,7 +16,7 @@ export interface MessageCatalog {
     recommendations: string;
     trend: string;
   };
-  metrics: Record<keyof InsightMetrics, string>;
+  metrics: Record<MetricMessageKey, string>;
   trend: {
     baseline: string;
     comparison: string;

@@ -1,7 +1,7 @@
 {
   "name": "codex-insights",
   "version": "0.1.0",
-  "description": "Generate localized Tailwind HTML reports for Codex sessions, with date-versioned local history and trend analysis.",
+  "description": "Generate evidence-backed Codex session, repo, and workspace reports with deep topic analysis and date-versioned local history.",
   "author": {
     "name": "Codex Insights",
     "email": "hello@example.com",
@@ -21,8 +21,8 @@
   "mcpServers": "./.mcp.json",
   "interface": {
     "displayName": "Codex Insights",
-    "shortDescription": "Generate localized Codex session reports",
-    "longDescription": "Codex Insights generates localized Tailwind HTML reports for Codex sessions, saves date-versioned local history, and compares future runs against previous reports to show trends.",
+    "shortDescription": "Generate Codex insights reports",
+    "longDescription": "Codex Insights generates localized evidence-backed reports for Codex sessions, repositories, and multi-project workspaces. It supports deep topic analysis, RAG maturity assessment, date-versioned history, and trend comparison.",
     "developerName": "Codex Insights",
     "category": "Productivity",
     "capabilities": ["Read", "Write"],
@@ -32,6 +32,7 @@
     "defaultPrompt": [
       "Generate Codex insights for this session",
       "Show this project's Codex trend report",
+      "Scan my workspace and analyze RAG maturity",
       "生成本次 Codex 会话洞察分析"
     ],
     "brandColor": "#0891B2"

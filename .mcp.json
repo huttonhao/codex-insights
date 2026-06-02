@@ -3,7 +3,7 @@
     "codex-insights": {
       "command": "npm",
       "args": ["run", "mcp", "--silent"],
-      "note": "Local Codex Insights MCP server. Generates localized Tailwind HTML insight reports and saves date-versioned report history."
+      "note": "Local Codex Insights MCP server. Generates evidence-backed session, repo, and workspace reports with JSON or Markdown MCP output."
     }
   }
 }

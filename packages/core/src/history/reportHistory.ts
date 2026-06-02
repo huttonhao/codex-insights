@@ -4,13 +4,15 @@ import type { InsightReport } from "../insights/reportModel.js";
 
 export interface SaveReportSnapshotInput {
   report: InsightReport;
-  html: string;
+  html?: string;
+  markdown?: string;
   reportsDir?: string;
 }
 
 export interface SavedReportSnapshot {
   jsonPath: string;
-  htmlPath: string;
+  htmlPath?: string;
+  markdownPath?: string;
 }
 
 export const defaultReportsDir = ".codex-insights/reports";
@@ -19,7 +21,12 @@ export function createReportFileBase(report: InsightReport): string {
   const timestamp = report.generatedAt
     .replace(/\.\d{3}Z$/, "")
     .replace(/:/g, "-");
-  return `${timestamp}_${sanitizeFilePart(report.sessionId)}_${report.locale}`;
+  const scope =
+    report.scanSummary.workspacePath ??
+    report.scanSummary.repoPath ??
+    report.repository.root ??
+    report.id;
+  return `${timestamp}_${sanitizeFilePart(report.scanSummary.mode)}_${sanitizeFilePart(scope)}_${report.locale}`;
 }
 
 export async function saveReportSnapshot(
@@ -30,12 +37,18 @@ export async function saveReportSnapshot(
 
   const fileBase = createReportFileBase(input.report);
   const jsonPath = join(reportsDir, `${fileBase}.json`);
-  const htmlPath = join(reportsDir, `${fileBase}.html`);
+  const htmlPath = input.html ? join(reportsDir, `${fileBase}.html`) : undefined;
+  const markdownPath = input.markdown ? join(reportsDir, `${fileBase}.md`) : undefined;
 
   await writeFile(jsonPath, `${JSON.stringify(input.report, null, 2)}\n`, "utf8");
-  await writeFile(htmlPath, input.html, "utf8");
+  if (input.html && htmlPath) {
+    await writeFile(htmlPath, input.html, "utf8");
+  }
+  if (input.markdown && markdownPath) {
+    await writeFile(markdownPath, input.markdown, "utf8");
+  }
 
-  return { jsonPath, htmlPath };
+  return { jsonPath, htmlPath, markdownPath };
 }
 
 export async function loadLatestComparableReport(
@@ -58,19 +71,36 @@ export async function loadLatestComparableReport(
 
   return reports
     .filter((report): report is InsightReport => report !== undefined)
-    .filter((report) => report.repository.root === current.repository.root)
+    .filter((report) => isComparable(report, current))
     .filter((report) => report.generatedAt < current.generatedAt)
     .sort((left, right) => right.generatedAt.localeCompare(left.generatedAt))[0];
 }
 
 async function readReportJson(path: string): Promise<InsightReport | undefined> {
   try {
-    return JSON.parse(await readFile(path, "utf8")) as InsightReport;
+    const parsed = JSON.parse(await readFile(path, "utf8")) as InsightReport;
+    return parsed.schemaVersion === "2.0" ? parsed : undefined;
   } catch {
     return undefined;
   }
 }
 
+function isComparable(left: InsightReport, right: InsightReport): boolean {
+  return (
+    left.locale === right.locale &&
+    left.scanSummary.mode === right.scanSummary.mode &&
+    comparablePath(left) === comparablePath(right)
+  );
+}
+
+function comparablePath(report: InsightReport): string {
+  return (
+    report.scanSummary.workspacePath ??
+    report.scanSummary.repoPath ??
+    report.repository.root
+  );
+}
+
 function sanitizeFilePart(value: string): string {
-  return value.replace(/[^a-zA-Z0-9._-]+/g, "-");
+  return value.replace(/[^a-zA-Z0-9._-]+/g, "-").slice(0, 120);
 }

@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { renderInsightsReport, type InsightReport } from "../src/index.js";
+import {
+  renderInsightsMarkdown,
+  renderInsightsReport,
+  type InsightReport
+} from "../src/index.js";
 
 const report: InsightReport = {
   id: "report-1",
@@ -17,8 +21,11 @@ const report: InsightReport = {
   metrics: {
     toolCalls: 8,
     filesTouched: 6,
-    testsRun: 12,
-    warnings: 1
+    testsRunKnown: true,
+    testsRunCount: 12,
+    warnings: 1,
+    testCommands: [],
+    buildCommands: []
   },
   recommendations: [
     "Add transcript parsing once the stable report model is covered."
@@ -27,7 +34,21 @@ const report: InsightReport = {
     kind: "baseline",
     message: "This is the first saved report for this repository.",
     deltas: {}
-  }
+  },
+  schemaVersion: "2.0",
+  dataQuality: [],
+  scanSummary: {
+    mode: "repo",
+    repoPath: "/repo",
+    projectsScanned: 1,
+    filesScanned: 6,
+    bytesScanned: 1200,
+    skippedFiles: 0,
+    startedAt: "2026-06-02T08:00:00.000Z",
+    completedAt: "2026-06-02T08:00:00.000Z"
+  },
+  projects: [],
+  deepTopics: []
 };
 
 describe("renderInsightsReport", () => {
@@ -39,8 +60,8 @@ describe("renderInsightsReport", () => {
     expect(html).toContain("Codex Insights");
     expect(html).toContain("Summary");
     expect(html).toContain("Implemented the first version");
-    expect(html).toContain("Tool calls");
-    expect(html).toContain(">8<");
+    expect(html).toContain("Projects scanned");
+    expect(html).toContain(">1<");
     expect(html).toContain("Trend");
     expect(html).toContain("first saved report");
     expect(html).toContain("rounded-xl");
@@ -51,10 +72,17 @@ describe("renderInsightsReport", () => {
 
     expect(html).toContain("Codex 洞察分析");
     expect(html).toContain("摘要");
-    expect(html).toContain("工具调用");
-    expect(html).toContain(">8<");
+    expect(html).toContain("扫描项目");
+    expect(html).toContain(">1<");
     expect(html).toContain("趋势");
-    expect(html).toContain("首次保存的报告");
     expect(html).toContain("lang=\"zh-CN\"");
+  });
+
+  it("renders Markdown for issue or documentation sharing", () => {
+    const markdown = renderInsightsMarkdown(report, "zh-CN");
+
+    expect(markdown).toContain("# Codex 洞察分析");
+    expect(markdown).toContain("## 摘要");
+    expect(markdown).toContain("Projects scanned: 1");
   });
 });

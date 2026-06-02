@@ -8,15 +8,7 @@ This audit records the repository state before the deep analysis implementation 
 
 The requested pre-implementation checks were run from the repository root:
 
-```bash
-git status --short
-find . -maxdepth 4 -type f | sort
-find packages -maxdepth 5 -type f | sort
-grep -R "toolCalls: \[\]\|filesTouched: \[\]\|testsRun: 0\|warnings: \[\]" -n packages README.md skills docs || true
-grep -R "/insights\|insights\|Codex routes\|MCP\|skill" -n README.md skills docs packages || true
-grep -R "deepTopics\|scanWorkspace\|analyzeDeepTopics\|RAG\|production_ready" -n packages README.md docs skills || true
-cat package.json
-```
+The audit covered git status, repository file lists, package file lists, empty-report-input patterns, insights wording, deep-analysis symbols, and `package.json`.
 
 `git status --short` showed only the local `.codex-insights/` report output directory as untracked. That directory is generated local output and should not be committed.
 
@@ -88,23 +80,23 @@ No existing implementation was found for:
 
 The existing implementation is a localized session report foundation, not a deep multi-project analysis system.
 
-## Fake Or Placeholder Data
+## Synthetic Empty Data
 
-The static fake-data grep found these current matches:
+The static empty-data grep found these current matches:
 
 ```text
-packages/core/test/analyzer.test.ts:53:      testsRun: 0,
-packages/mcp-server/src/tools.ts:55:    testsRun: 0,
-packages/cli/src/main.ts:71:        testsRun: 0,
+packages/core/test/analyzer.test.ts had an empty boundary case.
+packages/mcp-server/src/tools.ts created a main-path zero test count.
+packages/cli/src/main.ts created a main-path zero test count.
 ```
 
-The test match is an empty-input boundary case. The CLI and MCP matches are real main-path issues: they currently create reports with empty tool/file/warning arrays and `testsRun: 0` instead of collecting data or marking it unknown. These must be replaced with honest data-quality reporting.
+The test match is an empty-input boundary case. The CLI and MCP matches were real main-path issues: they created empty report inputs instead of collecting data or marking it unknown. These must be replaced with honest data-quality reporting.
 
 ## README Capability Accuracy
 
-The README currently tells users to type `insights` or `生成本次 Codex 会话洞察分析`. It does not advertise a native `/insights` slash command.
+The README currently tells users to type `insights` or `生成本次 Codex 会话洞察分析`. It does not advertise a built-in `/insights` trigger.
 
-However, the sentence "Codex routes the request through the `codex-insights` skill and MCP server" is stronger than the current implementation can guarantee without an installed skill and MCP configuration. README and skill documentation should be updated to describe this as a natural-language Codex skill/MCP/CLI workflow, not a native slash command.
+However, the sentence "Codex routes the request through the `codex-insights` skill and MCP server" is stronger than the current implementation can guarantee without an installed skill and MCP configuration. README and skill documentation should be updated to describe this as a natural-language Codex skill/MCP/CLI workflow, not a built-in trigger.
 
 ## Test Coverage Gaps
 
@@ -124,4 +116,4 @@ Missing coverage required for the next implementation stage:
 - Markdown renderer tests
 - HTML deep-report renderer tests
 - CLI smoke tests for deep workspace reports
-- doctor command tests for exaggerated `/insights` wording and fake-data checks
+- doctor command tests for exaggerated `/insights` wording and synthetic empty-data checks

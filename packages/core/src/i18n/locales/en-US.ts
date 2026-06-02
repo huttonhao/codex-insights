@@ -9,8 +9,8 @@ export const enUS: MessageCatalog = {
     trend: "Trend"
   },
   metrics: {
-    toolCalls: "Tool calls",
-    filesTouched: "Files touched",
+    projectsScanned: "Projects scanned",
+    filesScanned: "Files scanned",
     testsRun: "Tests run",
     warnings: "Warnings"
   },

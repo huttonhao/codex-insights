@@ -4,7 +4,7 @@
 
 Codex Insights is a Codex plugin that lets users type natural-language prompts such as `insights`, `session insights`, or `generate insights for this session` and receive a localized report about the current Codex session and project trend.
 
-The product should feel close to Claude Code `/insights`, without depending on unsupported custom slash command registration in Codex.
+The product should feel close to Claude Code `/insights`, without depending on unsupported built-in trigger registration in Codex.
 
 ## User Experience
 

@@ -9,8 +9,8 @@ export const zhCN: MessageCatalog = {
     trend: "趋势"
   },
   metrics: {
-    toolCalls: "工具调用",
-    filesTouched: "触达文件",
+    projectsScanned: "扫描项目",
+    filesScanned: "扫描文件",
     testsRun: "测试运行",
     warnings: "警告"
   },

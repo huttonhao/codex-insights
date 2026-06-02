@@ -227,7 +227,7 @@ Describe natural-language triggers, session/repo/workspace modes, data-quality w
 
 - [ ] **Step 3: Run docs consistency checks**
 
-Run: `grep -R "native /insights\|原生 /insights\|slash command" -n README.md skills docs packages || true`
+Run the unsupported-trigger wording grep from `docs/ACCEPTANCE.md`.
 
 ## Task 9: Final Quality Gates And Commits
 

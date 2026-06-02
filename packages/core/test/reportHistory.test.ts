@@ -24,7 +24,7 @@ afterEach(async () => {
 describe("report history", () => {
   it("creates deterministic date-versioned file bases", () => {
     expect(createReportFileBase(makeReport())).toBe(
-      "2026-06-02T08-00-00_session-1_en-US"
+      "2026-06-02T08-00-00_repo_-repo_en-US"
     );
   });
 
@@ -37,11 +37,12 @@ describe("report history", () => {
     });
 
     expect(existsSync(saved.jsonPath)).toBe(true);
-    expect(existsSync(saved.htmlPath)).toBe(true);
+    expect(saved.htmlPath).toBeDefined();
+    expect(existsSync(saved.htmlPath!)).toBe(true);
 
     const parsed = JSON.parse(await readFile(saved.jsonPath, "utf8")) as InsightReport;
     expect(parsed.sessionId).toBe("session-1");
-    expect(await readFile(saved.htmlPath, "utf8")).toBe(
+    expect(await readFile(saved.htmlPath!, "utf8")).toBe(
       "<!doctype html><title>Codex Insights</title>"
     );
   });
@@ -56,7 +57,17 @@ describe("report history", () => {
       id: "other",
       sessionId: "other-session",
       generatedAt: "2026-06-03T08:00:00.000Z",
-      repository: { root: "/other", name: "other" }
+      repository: { root: "/other", name: "other" },
+      scanSummary: {
+        mode: "repo",
+        repoPath: "/other",
+        projectsScanned: 1,
+        filesScanned: 1,
+        bytesScanned: 1,
+        skippedFiles: 0,
+        startedAt: "2026-06-03T08:00:00.000Z",
+        completedAt: "2026-06-03T08:00:00.000Z"
+      }
     });
     const current = makeReport({
       id: "current",
@@ -81,19 +92,27 @@ describe("report history", () => {
 
   it("computes trend deltas against a previous report", () => {
     const previous = makeReport({
-      metrics: {
-        toolCalls: 5,
-        filesTouched: 2,
-        testsRun: 3,
-        warnings: 2
+      scanSummary: {
+        mode: "repo",
+        repoPath: "/repo",
+        projectsScanned: 1,
+        filesScanned: 2,
+        bytesScanned: 100,
+        skippedFiles: 2,
+        startedAt: "2026-06-01T08:00:00.000Z",
+        completedAt: "2026-06-01T08:00:00.000Z"
       }
     });
     const current = makeReport({
-      metrics: {
-        toolCalls: 8,
-        filesTouched: 6,
-        testsRun: 12,
-        warnings: 1
+      scanSummary: {
+        mode: "repo",
+        repoPath: "/repo",
+        projectsScanned: 2,
+        filesScanned: 6,
+        bytesScanned: 350,
+        skippedFiles: 1,
+        startedAt: "2026-06-02T08:00:00.000Z",
+        completedAt: "2026-06-02T08:00:00.000Z"
       }
     });
 
@@ -101,10 +120,17 @@ describe("report history", () => {
       kind: "comparison",
       message: "Compared with the previous saved report.",
       deltas: {
-        toolCalls: 3,
-        filesTouched: 4,
-        testsRun: 9,
-        warnings: -1
+        projectsScanned: 1,
+        filesScanned: 4,
+        bytesScanned: 250,
+        skippedFiles: -1,
+        topicMentions: {},
+        ragMaturityDistribution: {},
+        newTopics: [],
+        disappearedTopics: [],
+        newRisks: [],
+        resolvedRisks: [],
+        repeatedRecommendedActions: ["Keep building with tests first."]
       }
     });
   });
@@ -127,8 +153,11 @@ function makeReport(overrides: Partial<InsightReport> = {}): InsightReport {
     metrics: {
       toolCalls: 8,
       filesTouched: 6,
-      testsRun: 12,
-      warnings: 1
+      testsRunKnown: true,
+      testsRunCount: 12,
+      warnings: 1,
+      testCommands: [],
+      buildCommands: []
     },
     recommendations: ["Keep building with tests first."],
     trend: {
@@ -136,6 +165,20 @@ function makeReport(overrides: Partial<InsightReport> = {}): InsightReport {
       message: "This is the first saved report for this repository.",
       deltas: {}
     },
+    schemaVersion: "2.0",
+    dataQuality: [],
+    scanSummary: {
+      mode: "repo",
+      repoPath: "/repo",
+      projectsScanned: 1,
+      filesScanned: 6,
+      bytesScanned: 1200,
+      skippedFiles: 0,
+      startedAt: "2026-06-02T08:00:00.000Z",
+      completedAt: "2026-06-02T08:00:00.000Z"
+    },
+    projects: [],
+    deepTopics: [],
     ...overrides
   };
 }

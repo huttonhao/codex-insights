@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Codex plugin, MCP server, and CLI for localized Codex session insights.",
+  "description": "Codex skill, MCP server, and CLI for evidence-backed session, repo, and workspace insights.",
   "bin": {
     "codex-insights": "./dist/packages/cli/src/main.js"
   },

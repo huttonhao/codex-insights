@@ -1,0 +1,11 @@
+{
+  "name": "rag-prototype",
+  "version": "0.1.0",
+  "dependencies": {
+    "@langchain/core": "^0.3.0",
+    "openai": "^4.0.0"
+  },
+  "scripts": {
+    "demo": "tsx src/retriever.ts"
+  }
+}
