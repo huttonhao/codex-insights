@@ -48,7 +48,12 @@ export function createServer(): McpServer {
             text: result.content
           }
         ],
-        structuredContent: result
+        structuredContent: {
+          locale: result.locale,
+          format: result.format,
+          content: result.content,
+          saved: result.saved
+        }
       };
     }
   );
