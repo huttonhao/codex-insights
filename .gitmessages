@@ -1,0 +1,21 @@
+# <type>(<scope>): <subject>
+#
+# Use English only. Keep the subject imperative, present tense, and under 72 characters.
+#
+# Types:
+# feat:     New user-facing functionality
+# fix:      Bug fix
+# docs:     Documentation only
+# test:     Tests only
+# refactor: Code change without behavior change
+# chore:    Tooling, build, dependency, or maintenance work
+# ci:       Continuous integration changes
+#
+# Example:
+# feat(cli): add localized insight report command
+#
+# Body:
+# Explain what changed and why. Wrap at 72 characters.
+#
+# Footer:
+# Reference issues or breaking changes when needed.
