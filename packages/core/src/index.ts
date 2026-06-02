@@ -14,6 +14,10 @@ export {
   type SaveReportSnapshotInput,
   type SavedReportSnapshot
 } from "./history/reportHistory.js";
+export {
+  analyzeSession,
+  type SessionInsightInput
+} from "./insights/analyzer.js";
 export { compareReportTrends, createBaselineTrend } from "./insights/trends.js";
 export type {
   InsightMetrics,
