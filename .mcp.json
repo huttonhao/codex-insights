@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "codex-insights": {
+      "command": "npm",
+      "args": ["run", "mcp", "--silent"],
+      "note": "Local Codex Insights MCP server. Generates localized Tailwind HTML insight reports and saves date-versioned report history."
+    }
+  }
+}

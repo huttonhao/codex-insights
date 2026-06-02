@@ -1,0 +1,39 @@
+{
+  "name": "codex-insights",
+  "version": "0.1.0",
+  "description": "Generate localized Tailwind HTML reports for Codex sessions, with date-versioned local history and trend analysis.",
+  "author": {
+    "name": "Codex Insights",
+    "email": "hello@example.com",
+    "url": "https://example.com/codex-insights"
+  },
+  "homepage": "https://example.com/codex-insights",
+  "repository": "https://example.com/codex-insights",
+  "license": "MIT",
+  "keywords": [
+    "codex",
+    "insights",
+    "reports",
+    "i18n",
+    "mcp"
+  ],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "Codex Insights",
+    "shortDescription": "Generate localized Codex session reports",
+    "longDescription": "Codex Insights generates localized Tailwind HTML reports for Codex sessions, saves date-versioned local history, and compares future runs against previous reports to show trends.",
+    "developerName": "Codex Insights",
+    "category": "Productivity",
+    "capabilities": ["Read", "Write"],
+    "websiteURL": "https://example.com/codex-insights",
+    "privacyPolicyURL": "https://example.com/codex-insights/privacy",
+    "termsOfServiceURL": "https://example.com/codex-insights/terms",
+    "defaultPrompt": [
+      "Generate Codex insights for this session",
+      "Show this project's Codex trend report",
+      "生成本次 Codex 会话洞察分析"
+    ],
+    "brandColor": "#0891B2"
+  }
+}
