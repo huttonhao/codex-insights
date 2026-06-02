@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build a minimal Codex Insights plugin with shared i18n-aware reporting, date-versioned local report history, trend comparison, MCP tool wrappers, and a CLI.
+**Goal:** Build a minimal Codex Insights plugin with shared i18n-aware Tailwind HTML reporting, date-versioned local report history, trend comparison, MCP tool wrappers, and a CLI.
 
-**Architecture:** Use a Node.js TypeScript monorepo. `packages/core` owns report data structures, i18n rendering, report history, and trend comparison; `packages/mcp-server` and `packages/cli` call core; `skills/codex-insights` routes natural-language prompts to MCP tools.
+**Architecture:** Use a Node.js TypeScript monorepo. `packages/core` owns report data structures, i18n Tailwind HTML rendering, report history, and trend comparison; `packages/mcp-server` and `packages/cli` call core; `skills/codex-insights` routes natural-language prompts to MCP tools.
 
 **Tech Stack:** TypeScript, Node.js, npm workspaces, Vitest, Commander, `@modelcontextprotocol/sdk`.
 
@@ -60,7 +60,7 @@ Run: `npm test -- packages/core/test/localeResolver.test.ts`
 
 Expected: PASS.
 
-## Task 2: Localized Report Rendering
+## Task 2: Localized HTML Report Rendering
 
 **Files:**
 - Create: `packages/core/test/outputRenderer.test.ts`
@@ -73,7 +73,7 @@ Expected: PASS.
 
 - [ ] **Step 1: Write failing renderer tests**
 
-Add tests that render the same `InsightReport` into English and Chinese Markdown, including a baseline trend message.
+Add tests that render the same `InsightReport` into English and Chinese Tailwind-styled HTML, including a baseline trend message.
 
 - [ ] **Step 2: Run renderer test to verify RED**
 
@@ -85,9 +85,9 @@ Expected: FAIL because report types and renderer do not exist.
 
 Define `InsightReport`, `TrendSummary`, and catalog messages for English and Chinese.
 
-- [ ] **Step 4: Implement Markdown renderer**
+- [ ] **Step 4: Implement HTML renderer**
 
-Render title, summary, metrics, recommendations, and trend sections.
+Render title, summary, metric cards, recommendations, and trend sections with TailwindCSS utility classes.
 
 - [ ] **Step 5: Run renderer test to verify GREEN**
 
@@ -105,7 +105,7 @@ Expected: PASS.
 
 - [ ] **Step 1: Write failing history tests**
 
-Add tests for deterministic date-versioned filenames, saving JSON and Markdown, loading latest previous report, and computing metric deltas.
+Add tests for deterministic date-versioned filenames, saving JSON and HTML, loading latest previous report, and computing metric deltas.
 
 - [ ] **Step 2: Run history test to verify RED**
 
@@ -173,7 +173,7 @@ Expected: FAIL because CLI entrypoint does not exist.
 
 - [ ] **Step 3: Implement CLI**
 
-Use Commander to expose `report`, `locales`, and `doctor`.
+Use Commander to expose `report`, `locales`, and `doctor`. Default report output is HTML.
 
 - [ ] **Step 4: Run CLI test to verify GREEN**
 

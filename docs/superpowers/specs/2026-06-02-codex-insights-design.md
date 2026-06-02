@@ -12,7 +12,7 @@ The product should feel close to Claude Code `/insights`, without depending on u
 2. The customer opens Codex and types `insights`, `show session insights`, or a localized equivalent such as `生成本次 Codex 会话洞察`.
 3. The plugin skill recognizes the intent and instructs Codex to call the MCP server.
 4. The MCP server reads local Codex session logs and project context.
-5. The server generates a structured report model and renders it in the user's preferred locale.
+5. The server generates a structured report model and renders it as a localized Tailwind-styled HTML report.
 6. The report is saved locally with a date-based versioned filename.
 7. On later runs, the server compares the current report with previous reports and includes trend information.
 
@@ -83,6 +83,19 @@ Output internationalization is renderer based:
 - Initial supported locales are `en-US` and `zh-CN`.
 - Unsupported locales fall back to `en-US`, while preserving the requested locale in metadata.
 
+## HTML Report Output
+
+The customer-facing report is an HTML document. It uses TailwindCSS utility classes for visual design and should be comfortable to open directly from the local filesystem.
+
+The HTML report includes:
+
+- A summary header with repository, session, and generated time.
+- Metric cards for tool calls, touched files, tests run, and warnings.
+- A localized trend section that compares the current report with previous local reports.
+- A recommendations section.
+
+JSON remains the internal saved model for trend comparison and automation.
+
 ## Report History And Trend Analysis
 
 Reports are saved locally instead of overwritten. The default directory is:
@@ -95,10 +108,10 @@ Each generated report creates:
 
 ```text
 YYYY-MM-DDTHH-mm-ss_<session-id>_<locale>.json
-YYYY-MM-DDTHH-mm-ss_<session-id>_<locale>.md
+YYYY-MM-DDTHH-mm-ss_<session-id>_<locale>.html
 ```
 
-The JSON file stores the structured report model. The Markdown file stores the rendered customer-facing report.
+The JSON file stores the structured report model. The HTML file stores the rendered customer-facing report.
 
 On each run:
 
@@ -125,7 +138,7 @@ All report tools accept:
 ```ts
 {
   locale?: "auto" | "en-US" | "zh-CN";
-  outputFormat?: "markdown" | "json";
+  outputFormat?: "html" | "json";
   detailLevel?: "brief" | "standard" | "deep";
   save?: boolean;
 }

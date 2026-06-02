@@ -1,7 +1,7 @@
 import type { MessageCatalog } from "../messageCatalog.js";
 
 export const zhCN: MessageCatalog = {
-  title: "Codex 洞察",
+  title: "Codex 洞察分析",
   sections: {
     summary: "摘要",
     metrics: "指标",

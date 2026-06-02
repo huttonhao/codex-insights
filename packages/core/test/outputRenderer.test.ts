@@ -31,24 +31,30 @@ const report: InsightReport = {
 };
 
 describe("renderInsightsReport", () => {
-  it("renders an English Markdown report", () => {
-    const markdown = renderInsightsReport(report, "en-US");
+  it("renders an English Tailwind-styled HTML report", () => {
+    const html = renderInsightsReport(report, "en-US");
 
-    expect(markdown).toContain("# Codex Insights");
-    expect(markdown).toContain("## Summary");
-    expect(markdown).toContain("Implemented the first version");
-    expect(markdown).toContain("| Tool calls | 8 |");
-    expect(markdown).toContain("## Trend");
-    expect(markdown).toContain("first saved report");
+    expect(html).toContain("<!doctype html>");
+    expect(html).toContain("https://cdn.tailwindcss.com");
+    expect(html).toContain("Codex Insights");
+    expect(html).toContain("Summary");
+    expect(html).toContain("Implemented the first version");
+    expect(html).toContain("Tool calls");
+    expect(html).toContain(">8<");
+    expect(html).toContain("Trend");
+    expect(html).toContain("first saved report");
+    expect(html).toContain("rounded-xl");
   });
 
-  it("renders a Chinese Markdown report from the same model", () => {
-    const markdown = renderInsightsReport(report, "zh-CN");
+  it("renders a Chinese Tailwind-styled HTML report from the same model", () => {
+    const html = renderInsightsReport(report, "zh-CN");
 
-    expect(markdown).toContain("# Codex 洞察");
-    expect(markdown).toContain("## 摘要");
-    expect(markdown).toContain("| 工具调用 | 8 |");
-    expect(markdown).toContain("## 趋势");
-    expect(markdown).toContain("首次保存的报告");
+    expect(html).toContain("Codex 洞察分析");
+    expect(html).toContain("摘要");
+    expect(html).toContain("工具调用");
+    expect(html).toContain(">8<");
+    expect(html).toContain("趋势");
+    expect(html).toContain("首次保存的报告");
+    expect(html).toContain("lang=\"zh-CN\"");
   });
 });
