@@ -7,7 +7,7 @@ import { scanWorkspace } from "../collectors/workspaceScanner.js";
 import type { CommandEvidenceSummary } from "../model/command.js";
 import type { DataQuality } from "../model/dataQuality.js";
 import { createDataQualityRecord, mergeDataQuality } from "../model/dataQuality.js";
-import { isLocale, tx } from "../i18n/index.js";
+import { tx } from "../i18n/index.js";
 import type {
   GenerateInsightsReportOptions,
   InsightReport,
@@ -60,10 +60,19 @@ export function analyzeSession(input: SessionInsightInput): InsightReport {
     generatedAt: now,
     locale: input.locale,
     summary: {
-      title: "Session report",
+      title: tx(input.locale, "report.summary.title.session"),
       narrative: testsRunKnown
-        ? `This session used ${input.toolCalls.length} tool calls, touched ${new Set(input.filesTouched).size} files, ran ${input.testsRun} test commands, and recorded ${input.warnings.length} warnings.`
-        : `This session used ${input.toolCalls.length} tool calls, touched ${new Set(input.filesTouched).size} files, and recorded ${input.warnings.length} warnings. Test execution is unknown.`
+        ? tx(input.locale, "report.summary.legacyKnown", {
+            toolCalls: input.toolCalls.length,
+            filesTouched: new Set(input.filesTouched).size,
+            testsRun: input.testsRun ?? 0,
+            warnings: input.warnings.length
+          })
+        : tx(input.locale, "report.summary.legacyUnknown", {
+            toolCalls: input.toolCalls.length,
+            filesTouched: new Set(input.filesTouched).size,
+            warnings: input.warnings.length
+          })
     },
     metrics: {
       toolCalls: input.toolCalls.length,
@@ -293,8 +302,10 @@ export async function generateInsightsReport(
     locale: options.locale,
     summary: {
       title: mode === "full"
-        ? (isLocale(options.locale, "zh-CN") ? "Codex Insights 全量洞察报告" : "Codex Insights Full Report")
-        : mode === "workspace" ? "Workspace deep analysis" : "Codex insight report",
+        ? tx(options.locale, "report.summary.title.full")
+        : mode === "workspace"
+          ? tx(options.locale, "report.summary.title.workspace")
+          : tx(options.locale, "report.summary.title.default"),
       narrative: createNarrative({
         mode,
         projects,
@@ -468,33 +479,22 @@ function createNarrative(input: {
   locale: InsightReport["locale"];
 }): string {
   if (input.mode === "codex-history") {
-    return isLocale(input.locale, "zh-CN")
-      ? "已基于 Codex JSONL session history 生成个人使用洞察。未知指标会保留为 dataQuality，不会写成 0。"
-      : "Generated personal usage insights from Codex JSONL session history. Unknown metrics are represented through dataQuality, not zeroes.";
+    return tx(input.locale, "report.summary.codexHistory");
   }
   const rag = input.deepTopics.find((topic) => topic.topic === "rag");
   if (input.mode === "workspace" && rag) {
-    if (isLocale(input.locale, "zh-CN")) {
-      return `在扫描的 ${input.projects.length} 个项目中，有 ${rag.mentionedProjects} 个项目出现 RAG 相关证据。当前重点不是“有没有 RAG”，而是多个项目分别处在提及、设计、原型、局部实现和接近生产的不同成熟度，后续需要收敛为可复用的平台能力。`;
-    }
-    return `Scanned ${input.projects.length} projects. ${rag.mentionedProjects} projects contain RAG evidence, with maturity ranging from mention-only to production-ready.`;
+    return tx(input.locale, "report.summary.workspaceRag", {
+      projects: input.projects.length,
+      mentioned: rag.mentionedProjects
+    });
   }
   if (input.mode === "workspace") {
-    if (isLocale(input.locale, "zh-CN")) {
-      return `扫描了 ${input.projects.length} 个项目，并生成 workspace 级洞察分析。`;
-    }
-    return `Scanned ${input.projects.length} projects and generated a workspace insight report.`;
+    return tx(input.locale, "report.summary.workspace", { projects: input.projects.length });
   }
   if (!input.testsRunKnown) {
-    if (isLocale(input.locale, "zh-CN")) {
-      return "已生成仓库洞察分析，但没有找到可证明测试执行情况的命令证据。";
-    }
-    return "Generated a repository insight report. Test execution evidence is unknown.";
+    return tx(input.locale, "report.summary.repoUnknownTests");
   }
-  if (isLocale(input.locale, "zh-CN")) {
-    return "已基于命令证据生成仓库洞察分析。";
-  }
-  return "Generated a repository insight report with command evidence.";
+  return tx(input.locale, "report.summary.repoWithEvidence");
 }
 
 function summarizeHistoryCommandEvidence(
@@ -534,45 +534,43 @@ function createDefaultProductInsights(input: {
   workspaceQuality?: InsightReport["workspaceQuality"];
 }): InsightReport["productInsights"] {
   const rag = input.deepTopics.find((topic) => topic.topic === "rag");
-  if (isLocale(input.locale, "zh-CN")) {
-    return {
-      atAGlance: [
-        input.mode === "workspace"
-          ? `扫描 ${input.projects.length} 个项目，生成跨项目技术雷达。`
-          : "生成 Codex 洞察分析报告。"
-      ],
-      whatYouWorkOn: [
-        rag ? `RAG 相关项目 ${rag.mentionedProjects}/${rag.totalProjects} 个。` : "当前报告没有足够的 session history 来判断个人工作主题。"
-      ],
-      howYouUseCodex: [
-        input.testsRunKnown ? "报告找到了已执行测试命令证据。" : "测试执行情况未知，报告不会把 unknown 写成 0。"
-      ],
-      impressiveThings: [
-        rag?.recommendedReferenceProjects.length
-          ? `可作为参考实现的项目：${rag.recommendedReferenceProjects.join("、")}。`
-          : "尚未形成可复用参考实现判断。"
-      ],
-      whereThingsGoWrong: [
-        input.workspaceQuality?.projectsWithoutQualityEvidence
-          ? `${input.workspaceQuality.projectsWithoutQualityEvidence} 个项目缺少质量证据。`
-          : "未发现明确的质量证据缺口，或当前模式没有 workspace quality 数据。"
-      ],
-      featuresToTry: ["用 MCP/skill 固化重复的质量门禁和专题分析。"],
-      suggestedAgentsAdditions: ["验收代码改动时，先运行 find、grep、git diff、git show，再运行 test/build。"],
-      newWaysToUseCodex: ["定期运行 workspace deep report，观察技术雷达和趋势变化。"],
-      onTheHorizon: ["把高频 topic 的 partial 项目迁移到 reference implementation 或公共平台能力。"]
-    };
-  }
   return {
-    atAGlance: [input.mode === "workspace" ? `Scanned ${input.projects.length} projects.` : "Generated a Codex insight report."],
-    whatYouWorkOn: [rag ? `${rag.mentionedProjects}/${rag.totalProjects} projects contain RAG evidence.` : "Session-history work themes are unavailable in this mode."],
-    howYouUseCodex: [input.testsRunKnown ? "Executed test-command evidence was found." : "Test execution is unknown and is not converted to zero."],
-    impressiveThings: [rag?.recommendedReferenceProjects.length ? `Reference candidates: ${rag.recommendedReferenceProjects.join(", ")}.` : "No reusable reference candidate was identified."],
-    whereThingsGoWrong: [input.workspaceQuality?.projectsWithoutQualityEvidence ? `${input.workspaceQuality.projectsWithoutQualityEvidence} projects lack quality evidence.` : "No explicit quality gap was identified for this mode."],
-    featuresToTry: ["Use MCP/skills to make repeated quality gates and topic analysis consistent."],
-    suggestedAgentsAdditions: ["Run static inspection first: find, grep, git diff, git show; then run test/build."],
-    newWaysToUseCodex: ["Run recurring workspace deep reports to track technology radar changes."],
-    onTheHorizon: ["Migrate high-frequency partial topics toward reference implementations or platform modules."]
+    atAGlance: [
+      input.mode === "workspace"
+        ? tx(input.locale, "report.product.atAGlance.workspace", { projects: input.projects.length })
+        : tx(input.locale, "report.product.atAGlance.default")
+    ],
+    whatYouWorkOn: [
+      rag
+        ? tx(input.locale, "report.product.work.rag", {
+            mentioned: rag.mentionedProjects,
+            total: rag.totalProjects
+          })
+        : tx(input.locale, "report.product.work.noHistory")
+    ],
+    howYouUseCodex: [
+      input.testsRunKnown
+        ? tx(input.locale, "report.product.usage.testsKnown")
+        : tx(input.locale, "report.product.usage.testsUnknown")
+    ],
+    impressiveThings: [
+      rag?.recommendedReferenceProjects.length
+        ? tx(input.locale, "report.product.strength.reference", {
+            projects: rag.recommendedReferenceProjects.join(", ")
+          })
+        : tx(input.locale, "report.product.strength.noReference")
+    ],
+    whereThingsGoWrong: [
+      input.workspaceQuality?.projectsWithoutQualityEvidence
+        ? tx(input.locale, "report.product.problem.qualityGap", {
+            count: input.workspaceQuality.projectsWithoutQualityEvidence
+          })
+        : tx(input.locale, "report.product.problem.noQualityGap")
+    ],
+    featuresToTry: [tx(input.locale, "report.product.features")],
+    suggestedAgentsAdditions: [tx(input.locale, "report.product.agents")],
+    newWaysToUseCodex: [tx(input.locale, "report.product.newWays")],
+    onTheHorizon: [tx(input.locale, "report.product.horizon")]
   };
 }
 
@@ -589,24 +587,14 @@ function createReportRecommendations(
   const rag = deepTopics.find((topic) => topic.topic === "rag");
   if (rag?.platformizationRecommendation.shouldPlatformize) {
     recommendations.push(
-      isLocale(locale, "zh-CN")
-        ? `建议把 RAG 抽成平台能力：业务项目保留数据源、权限模型和业务 prompt；公共平台负责文档接入、切片、embedding、索引、召回、重排、引用校验、评估和观测。当前有 ${rag.mentionedProjects} 个项目出现 RAG 证据，继续分散实现会增加重复建设和评估口径不一致的风险。`
-        : rag.platformizationRecommendation.reason
+      tx(locale, "report.recommendation.ragPlatform", { mentioned: rag.mentionedProjects })
     );
   }
   if (unknownReason) {
-    recommendations.push(
-      isLocale(locale, "zh-CN")
-        ? "没有找到已执行的测试命令证据，因此报告只能标记测试状态未知，不能把它当作未执行或已执行。"
-        : unknownReason
-    );
+    recommendations.push(tx(locale, "report.recommendation.unknownTests"));
   }
   if (recommendations.length === 0) {
-    recommendations.push(
-      isLocale(locale, "zh-CN")
-        ? "继续保存基于证据的报告，以便后续生成更可靠的趋势比较。"
-        : "Continue collecting evidence-backed reports to improve trend quality."
-    );
+    recommendations.push(tx(locale, "report.recommendation.default"));
   }
   return recommendations;
 }

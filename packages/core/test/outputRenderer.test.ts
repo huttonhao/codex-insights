@@ -59,7 +59,7 @@ describe("renderInsightsReport", () => {
     expect(html).toContain("<style>");
     expect(html).not.toContain("https://cdn.tailwindcss.com");
     expect(html).toContain("Codex Insights");
-    expect(html).toContain("At a Glance");
+    expect(html).toContain("0. Executive Summary");
     expect(html).toContain("Implemented the first version");
     expect(html).toContain("Projects scanned");
     expect(html).toContain(">1<");
@@ -71,7 +71,7 @@ describe("renderInsightsReport", () => {
     const html = renderInsightsReport(report, "zh-CN");
 
     expect(html).toContain("Codex 洞察分析");
-    expect(html).toContain("总览");
+    expect(html).toContain("0. 执行摘要");
     expect(html).toContain("扫描项目");
     expect(html).toContain(">1<");
     expect(html).toContain("趋势");
@@ -82,7 +82,7 @@ describe("renderInsightsReport", () => {
     const markdown = renderInsightsMarkdown(report, "zh-CN");
 
     expect(markdown).toContain("# Codex 洞察分析");
-    expect(markdown).toContain("## 总览");
+    expect(markdown).toContain("## 0. 执行摘要");
     expect(markdown).toContain("Projects scanned: 1");
   });
 });

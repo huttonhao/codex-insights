@@ -4,7 +4,7 @@ import type { SupportedLocale } from "./localeResolver.js";
 import { getMessageCatalog } from "./messageCatalog.js";
 import { createI18n } from "./locale.js";
 import { formatBoolean, formatMaturity, formatPriority } from "./format.js";
-import { t } from "./t.js";
+import { t, type MessageKey } from "./t.js";
 
 export function renderInsightsReport(
   report: InsightReport,
@@ -21,7 +21,7 @@ export function renderInsightsHtml(
     return renderFullInsightsHtml(report, locale);
   }
   const catalog = getMessageCatalog(locale);
-  const labels = sectionLabels(locale);
+  const ctx = createI18n(locale);
   const rag = report.deepTopics.find((topic) => topic.topic === "rag");
 
   return `<!doctype html>
@@ -66,28 +66,28 @@ export function renderInsightsHtml(
         <h1>${escapeHtml(catalog.title)}</h1>
         <p>${escapeHtml(report.summary.narrative)}</p>
         <div class="meta">
-          ${metric(labels.schema, report.schemaVersion)}
-          ${metric(labels.mode, report.scanSummary.mode)}
-          ${metric(labels.projectsScanned, String(report.scanSummary.projectsScanned))}
-          ${metric(labels.testsRun, report.metrics.testsRunKnown ? String(report.metrics.testsRunCount ?? 0) : "unknown")}
+          ${metric(t(ctx, "report.schema"), report.schemaVersion)}
+          ${metric(t(ctx, "report.mode"), report.scanSummary.mode)}
+          ${metric(t(ctx, "report.projectsScanned"), String(report.scanSummary.projectsScanned))}
+          ${metric(t(ctx, "report.testsRun"), report.metrics.testsRunKnown ? String(report.metrics.testsRunCount ?? 0) : t(ctx, "report.render.insufficientTestEvidence"))}
         </div>
       </header>
-      ${renderSection(labels.atAGlance, report.productInsights?.atAGlance)}
+      ${renderSection(t(ctx, "report.section.executiveSummary"), report.productInsights?.atAGlance, ctx)}
       ${renderUsageMetrics(report, locale)}
-      ${renderSection(labels.whatYouWorkOn, report.productInsights?.whatYouWorkOn)}
-      ${renderSection(labels.howYouUseCodex, report.productInsights?.howYouUseCodex)}
+      ${renderSection(t(ctx, "report.section.recentWork"), report.productInsights?.whatYouWorkOn, ctx)}
+      ${renderSection(t(ctx, "report.section.codexUsage"), report.productInsights?.howYouUseCodex, ctx)}
       ${renderProjectBreakdown(report, locale)}
       ${renderToolUsage(report, locale)}
       ${renderCommandAnalysis(report, locale)}
       ${renderWorkspaceQualityMatrix(report, locale)}
       ${renderDeepTopics(report, locale)}
       ${rag ? renderRagDeepDive(rag, locale) : ""}
-      ${renderSection(labels.whereThingsGoWrong, report.productInsights?.whereThingsGoWrong)}
-      ${renderSection(labels.impressiveThings, report.productInsights?.impressiveThings)}
+      ${renderSection(t(ctx, "report.section.problemPatterns"), report.productInsights?.whereThingsGoWrong, ctx)}
+      ${renderSection(t(ctx, "report.section.strengths"), report.productInsights?.impressiveThings, ctx)}
       ${renderAgentRules(report, locale)}
-      ${renderSection(labels.featuresToTry, report.productInsights?.featuresToTry)}
-      ${renderSection(labels.newWaysToUseCodex, report.productInsights?.newWaysToUseCodex)}
-      ${renderSection(labels.onTheHorizon, report.productInsights?.onTheHorizon)}
+      ${renderSection(t(ctx, "report.section.nextCodexPrompts"), report.productInsights?.featuresToTry, ctx)}
+      ${renderSection(t(ctx, "report.section.nextCodexPrompts"), report.productInsights?.newWaysToUseCodex, ctx)}
+      ${renderSection(t(ctx, "report.section.trend"), report.productInsights?.onTheHorizon, ctx)}
       ${renderDataQuality(report, locale)}
       ${renderTrend(report, locale)}
     </main>
@@ -102,33 +102,33 @@ export function renderInsightsMarkdown(
   if (report.fullNarrative) {
     return renderFullInsightsMarkdown(report, locale);
   }
-  const labels = sectionLabels(locale);
+  const ctx = createI18n(locale);
   const lines: string[] = [
-    `# ${locale === "zh-CN" ? "Codex 洞察分析" : "Codex Insights"}`,
+    `# ${t(ctx, "report.title")}`,
     "",
     `- Schema: ${report.schemaVersion}`,
     `- Mode: ${report.scanSummary.mode}`,
     `- Generated: ${report.generatedAt}`,
     `- Projects scanned: ${report.scanSummary.projectsScanned}`,
     `- Files scanned: ${report.scanSummary.filesScanned}`,
-    `- Tests run: ${report.metrics.testsRunKnown ? report.metrics.testsRunCount ?? 0 : "unknown"}`,
+    `- Tests run: ${report.metrics.testsRunKnown ? report.metrics.testsRunCount ?? 0 : t(ctx, "report.render.insufficientTestEvidence")}`,
     "",
-    ...markdownSection(labels.atAGlance, report.productInsights?.atAGlance),
+    ...markdownSection(t(ctx, "report.section.executiveSummary"), report.productInsights?.atAGlance, ctx),
     ...markdownUsageMetrics(report, locale),
-    ...markdownSection(labels.whatYouWorkOn, report.productInsights?.whatYouWorkOn),
-    ...markdownSection(labels.howYouUseCodex, report.productInsights?.howYouUseCodex),
+    ...markdownSection(t(ctx, "report.section.recentWork"), report.productInsights?.whatYouWorkOn, ctx),
+    ...markdownSection(t(ctx, "report.section.codexUsage"), report.productInsights?.howYouUseCodex, ctx),
     ...markdownProjectBreakdown(report, locale),
     ...markdownToolUsage(report, locale),
     ...markdownCommandAnalysis(report, locale),
     ...markdownWorkspaceQuality(report, locale),
     ...markdownDeepTopics(report, locale),
     ...markdownRag(report, locale),
-    ...markdownSection(labels.whereThingsGoWrong, report.productInsights?.whereThingsGoWrong),
-    ...markdownSection(labels.impressiveThings, report.productInsights?.impressiveThings),
+    ...markdownSection(t(ctx, "report.section.problemPatterns"), report.productInsights?.whereThingsGoWrong, ctx),
+    ...markdownSection(t(ctx, "report.section.strengths"), report.productInsights?.impressiveThings, ctx),
     ...markdownAgentRules(report, locale),
-    ...markdownSection(labels.featuresToTry, report.productInsights?.featuresToTry),
-    ...markdownSection(labels.newWaysToUseCodex, report.productInsights?.newWaysToUseCodex),
-    ...markdownSection(labels.onTheHorizon, report.productInsights?.onTheHorizon),
+    ...markdownSection(t(ctx, "report.section.nextCodexPrompts"), report.productInsights?.featuresToTry, ctx),
+    ...markdownSection(t(ctx, "report.section.nextCodexPrompts"), report.productInsights?.newWaysToUseCodex, ctx),
+    ...markdownSection(t(ctx, "report.section.trend"), report.productInsights?.onTheHorizon, ctx),
     ...markdownDataQuality(report, locale),
     ...markdownTrend(report, locale)
   ];
@@ -164,7 +164,7 @@ function renderFullInsightsMarkdown(
     `- ${t(ctx, "report.coverage.confidence", { confidence: narrative.coverage.confidence })}`,
     `- ${narrative.coverage.confidenceReason}`,
     "",
-    ...markdownListBlock(narrative.coverage.dataGaps, "Data gaps"),
+    ...markdownListBlock(narrative.coverage.dataGaps, t(ctx, "report.render.dataGaps"), ctx),
     "",
     `## ${t(ctx, "report.section.highRisks")}`,
     "",
@@ -200,9 +200,9 @@ function renderFullInsightsMarkdown(
     "",
     ...markdownInsightTable(narrative.workspaceQuality.findings, ctx),
     "",
-    ...markdownListBlock(narrative.workspaceQuality.priorityOrder, "Priority order"),
+    ...markdownListBlock(narrative.workspaceQuality.priorityOrder, t(ctx, "report.render.priorityOrder"), ctx),
     "",
-    ...markdownListBlock(narrative.workspaceQuality.commandSuggestions, "Suggested commands"),
+    ...markdownListBlock(narrative.workspaceQuality.commandSuggestions, t(ctx, "report.render.suggestedCommands"), ctx),
     "",
     ...markdownWorkspaceQuality(report, locale),
     "",
@@ -236,7 +236,7 @@ function renderFullInsightsMarkdown(
     "",
     `## ${t(ctx, "report.section.problemPatterns")}`,
     "",
-    ...markdownProblemTable(narrative.problems),
+    ...markdownProblemTable(narrative.problems, ctx),
     "",
     `## ${t(ctx, "report.section.strengths")}`,
     "",
@@ -244,7 +244,7 @@ function renderFullInsightsMarkdown(
     "",
     `## ${t(ctx, "report.section.agentRules")}`,
     "",
-    ...markdownAgentRulesFull(narrative.agentRules),
+    ...markdownAgentRulesFull(narrative.agentRules, ctx),
     "",
     `## ${t(ctx, "report.section.nextCodexPrompts")}`,
     "",
@@ -253,15 +253,16 @@ function renderFullInsightsMarkdown(
     `## ${t(ctx, "report.section.dataQuality")}`,
     "",
     `- ${t(ctx, "report.coverage.confidence", { confidence: narrative.dataQuality.confidence })}`,
-    ...markdownListBlock(narrative.dataQuality.sources, "Sources"),
-    ...markdownListBlock(narrative.dataQuality.unknowns, "Unknowns"),
+    ...markdownListBlock(narrative.dataQuality.sources, t(ctx, "report.render.sources"), ctx),
+    ...markdownListBlock(narrative.dataQuality.unknowns, t(ctx, "report.render.unknowns"), ctx),
     ...markdownListBlock(
       narrative.dataQuality.suspiciousMetrics.length
         ? narrative.dataQuality.suspiciousMetrics
         : [t(ctx, "dataQuality.caveat.noAnomaly")],
-      "Suspicious metrics"
+      t(ctx, "report.render.suspiciousMetrics"),
+      ctx
     ),
-    ...markdownListBlock(narrative.dataQuality.caveats, "Caveats"),
+    ...markdownListBlock(narrative.dataQuality.caveats, t(ctx, "report.render.caveats"), ctx),
     "",
     `## ${t(ctx, "report.section.trend")}`,
     "",
@@ -388,20 +389,20 @@ function markdownRagFull(
     "| Dimension | Projects with evidence | Missing projects | Evidence | Platformize | Interpretation |",
     "| --- | --- | --- | --- | --- | --- |",
     ...rag.dimensions.map((item) =>
-      `| ${escapeMd(item.dimension)} | ${escapeMd(compactList(item.projectsWithEvidence))} | ${escapeMd(compactList(item.projectsMissing))} | ${escapeMd(compactList(item.evidence))} | ${item.platformize ? "yes" : "no"} | ${escapeMd(item.interpretation)} |`
+      `| ${escapeMd(item.dimension)} | ${escapeMd(compactList(item.projectsWithEvidence, ctx))} | ${escapeMd(compactList(item.projectsMissing, ctx))} | ${escapeMd(compactList(item.evidence, ctx))} | ${item.platformize ? t(ctx, "report.render.yes") : t(ctx, "report.render.no")} | ${escapeMd(item.interpretation)} |`
     ),
     "",
     `### ${t(ctx, "report.section.ragRoadmap")}`,
     "",
-    `- Reference project: ${rag.roadmap.referenceProject}`,
-    `- Not recommended as reference: ${compactList(rag.roadmap.rejectedReferences)}`,
-    `- Shared modules: ${compactList(rag.roadmap.sharedModules)}`,
-    `- Business boundaries: ${compactList(rag.roadmap.businessBoundaries)}`,
+    `- ${t(ctx, "report.render.referenceProject", { project: rag.roadmap.referenceProject })}`,
+    `- ${t(ctx, "report.render.rejectedReferences", { items: compactList(rag.roadmap.rejectedReferences, ctx) })}`,
+    `- ${t(ctx, "report.render.sharedModules", { items: compactList(rag.roadmap.sharedModules, ctx) })}`,
+    `- ${t(ctx, "report.render.businessBoundaries", { items: compactList(rag.roadmap.businessBoundaries, ctx) })}`,
     "",
-    ...markdownListBlock(rag.roadmap.phaseOne, "Phase 1"),
-    ...markdownListBlock(rag.roadmap.phaseTwo, "Phase 2"),
-    ...markdownListBlock(rag.roadmap.phaseThree, "Phase 3"),
-    ...markdownListBlock(rag.roadmap.defer, "Do not do yet")
+    ...markdownListBlock(rag.roadmap.phaseOne, t(ctx, "report.render.phaseOne"), ctx),
+    ...markdownListBlock(rag.roadmap.phaseTwo, t(ctx, "report.render.phaseTwo"), ctx),
+    ...markdownListBlock(rag.roadmap.phaseThree, t(ctx, "report.render.phaseThree"), ctx),
+    ...markdownListBlock(rag.roadmap.defer, t(ctx, "report.render.doNotDoYet"), ctx)
   ];
 }
 
@@ -437,7 +438,7 @@ function markdownTopicFocused(
     "| Project | Maturity | Implemented dimensions | Missing dimensions | Risks | Next action | Evidence |",
     "| --- | --- | --- | --- | --- | --- | --- |",
     ...topic.projectMaturity.map((item) =>
-      `| ${escapeMd(item.projectName)} | ${escapeMd(formatMaturity(ctx, item.maturity))} | ${escapeMd(compactList(item.implementedDimensions))} | ${escapeMd(compactList(item.missingDimensions))} | ${escapeMd(compactList(item.risks))} | ${escapeMd(compactList(item.recommendedNextActions))} | ${escapeMd(compactList(item.evidence.map((evidence) => evidence.snippet).slice(0, 3)))} |`
+      `| ${escapeMd(item.projectName)} | ${escapeMd(formatMaturity(ctx, item.maturity))} | ${escapeMd(compactList(item.implementedDimensions, ctx))} | ${escapeMd(compactList(item.missingDimensions, ctx))} | ${escapeMd(compactList(item.risks, ctx))} | ${escapeMd(compactList(item.recommendedNextActions, ctx))} | ${escapeMd(compactList(item.evidence.map((evidence) => evidence.snippet).slice(0, 3), ctx))} |`
     ),
     ""
   ]);
@@ -451,12 +452,12 @@ function markdownProblemTable(items: Array<{
   rootCause: string;
   fixStrategy: string;
   needsAgentRule: boolean;
-}>): string[] {
+}>, ctx: ReturnType<typeof createI18n>): string[] {
   return [
     "| Category | Count | Projects | Snippet | Root cause | Fix strategy | AGENTS.md rule needed |",
     "| --- | --- | --- | --- | --- | --- | --- |",
     ...items.map((item) =>
-      `| ${escapeMd(item.category)} | ${item.count} | ${escapeMd(compactList(item.projects))} | ${escapeMd(item.snippet)} | ${escapeMd(item.rootCause)} | ${escapeMd(item.fixStrategy)} | ${item.needsAgentRule ? "yes" : "no"} |`
+      `| ${escapeMd(item.category)} | ${item.count} | ${escapeMd(compactList(item.projects, ctx))} | ${escapeMd(item.snippet)} | ${escapeMd(item.rootCause)} | ${escapeMd(item.fixStrategy)} | ${item.needsAgentRule ? t(ctx, "report.render.yes") : t(ctx, "report.render.no")} |`
     )
   ];
 }
@@ -469,21 +470,21 @@ function markdownAgentRulesFull(items: Array<{
   appliesTo: string;
   severity: string;
   target: string;
-}>): string[] {
-  if (!items.length) return ["- No AGENTS.md suggestions."];
+}>, ctx?: ReturnType<typeof createI18n>): string[] {
+  if (!items.length) return [`- ${ctx ? t(ctx, "report.render.noAgentRules") : "No AGENTS.md suggestions."}`];
   return items.flatMap((item, index) => [
     `### ${index + 1}. ${item.title}`,
     "",
-    `- Target: ${item.target}`,
-    `- Severity: ${item.severity}`,
-    `- Applies to: ${item.appliesTo}`,
-    `- Reason: ${item.reason}`,
+    `- ${ctx ? t(ctx, "report.render.target", { target: item.target }) : `Target: ${item.target}`}`,
+    `- ${ctx ? t(ctx, "report.render.severity", { severity: item.severity }) : `Severity: ${item.severity}`}`,
+    `- ${ctx ? t(ctx, "report.render.appliesTo", { scope: item.appliesTo }) : `Applies to: ${item.appliesTo}`}`,
+    `- ${ctx ? t(ctx, "report.render.reason", { reason: item.reason }) : `Reason: ${item.reason}`}`,
     "",
     "```text",
     item.ruleText,
     "```",
     "",
-    ...markdownListBlock(item.evidence, "Evidence")
+    ...markdownListBlock(item.evidence, ctx ? t(ctx, "report.render.evidence") : "Evidence", ctx)
   ]);
 }
 
@@ -494,13 +495,13 @@ function markdownNextPrompts(
   return prompts.flatMap((item, index) => [
     `### ${index + 1}. ${item.title}`,
     "",
-    `- Priority: ${formatPriority(ctx, item.priority)}`,
+    `- ${t(ctx, "report.render.priority", { priority: formatPriority(ctx, item.priority) })}`,
     "",
     "```text",
     item.prompt,
     "```",
     "",
-    ...markdownListBlock(item.evidence, "Evidence")
+    ...markdownListBlock(item.evidence, t(ctx, "report.render.evidence"), ctx)
   ]);
 }
 
@@ -522,13 +523,13 @@ function markdownEvidenceIndex(items: Array<{
   ];
 }
 
-function markdownListBlock(items: string[], title: string): string[] {
-  return [`### ${title}`, "", ...markdownList(items, "none"), ""];
+function markdownListBlock(items: string[], title: string, ctx?: ReturnType<typeof createI18n>): string[] {
+  return [`### ${title}`, "", ...markdownList(items, ctx ? t(ctx, "common.none") : "none"), ""];
 }
 
-function compactList(items: string[] | undefined): string {
+function compactList(items: string[] | undefined, ctx?: ReturnType<typeof createI18n>): string {
   const cleaned = (items ?? []).filter(Boolean);
-  return cleaned.length ? cleaned.slice(0, 8).join("; ") : "not available";
+  return cleaned.length ? cleaned.slice(0, 8).join("; ") : ctx ? t(ctx, "report.render.notAvailable") : "not available";
 }
 
 function escapeMd(value: string): string {
@@ -580,276 +581,246 @@ function renderMarkdownTable(lines: string[]): string {
   return `<table><thead><tr>${header.map((cell) => `<th>${escapeHtml(cell)}</th>`).join("")}</tr></thead><tbody>${body.map((row) => `<tr>${row.map((cell) => `<td>${escapeHtml(cell)}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
 }
 
-function sectionLabels(locale: SupportedLocale): Record<string, string> {
-  return locale === "zh-CN"
-    ? {
-        schema: "Schema",
-        mode: "Mode",
-        projectsScanned: "扫描项目",
-        testsRun: "测试执行",
-        atAGlance: "总览",
-        usageMetrics: "使用指标",
-        whatYouWorkOn: "你主要在做什么",
-        howYouUseCodex: "你如何使用 Codex",
-        projectBreakdown: "项目分布",
-        toolUsage: "工具使用",
-        commandAnalysis: "命令与错误分析",
-        workspaceQuality: "工作区质量证据矩阵",
-        deepTopics: "深度专题报告",
-        ragDeepDive: "RAG 深挖",
-        whereThingsGoWrong: "问题经常出在哪里",
-        impressiveThings: "做得不错的地方",
-        agentRules: "建议加入 AGENTS.md 的规则",
-        featuresToTry: "建议尝试的能力和工作流",
-        newWaysToUseCodex: "Codex 的新用法",
-        onTheHorizon: "下一阶段机会",
-        dataQuality: "数据质量说明",
-        trend: "趋势对比"
-      }
-    : {
-        schema: "Schema",
-        mode: "Mode",
-        projectsScanned: "Projects scanned",
-        testsRun: "Tests run",
-        atAGlance: "At a Glance",
-        usageMetrics: "Usage Metrics",
-        whatYouWorkOn: "What You Work On",
-        howYouUseCodex: "How You Use Codex",
-        projectBreakdown: "Project Breakdown",
-        toolUsage: "Tool Usage",
-        commandAnalysis: "Command & Error Analysis",
-        workspaceQuality: "Workspace Quality Matrix",
-        deepTopics: "Deep Topic Reports",
-        ragDeepDive: "RAG Deep Dive",
-        whereThingsGoWrong: "Where Things Go Wrong",
-        impressiveThings: "Impressive Things You Did",
-        agentRules: "Suggested AGENTS.md Additions",
-        featuresToTry: "Features / Workflows to Try",
-        newWaysToUseCodex: "New Ways to Use Codex",
-        onTheHorizon: "On the Horizon",
-        dataQuality: "Data Quality",
-        trend: "Trend Comparison"
-      };
-}
-
 function renderUsageMetrics(report: InsightReport, locale: SupportedLocale): string {
-  const labels = sectionLabels(locale);
+  const ctx = createI18n(locale);
   const usage = report.usageAnalytics;
-  return `<section><h2>${escapeHtml(labels.usageMetrics)}</h2><div class="grid">
-    ${metric("Sessions", valueOrUnknown(usage?.qualifyingSessions ?? usage?.totalSessions))}
-    ${metric("Active days", valueOrUnknown(usage?.activeDays))}
-    ${metric("Messages", valueOrUnknown(usage?.totalMessages))}
-    ${metric("Tool calls", valueOrUnknown(usage?.toolCalls ?? report.metrics.toolCalls))}
-    ${metric("Files modified", valueOrUnknown(usage?.filesModified ?? report.metrics.filesTouched))}
-    ${metric("Lines + / -", `${valueOrUnknown(usage?.linesAdded)} / ${valueOrUnknown(usage?.linesRemoved)}`)}
+  return `<section><h2>${escapeHtml(t(ctx, "report.section.coverage"))}</h2><div class="grid">
+    ${metric("Sessions", valueOrUnavailable(usage?.qualifyingSessions ?? usage?.totalSessions, ctx))}
+    ${metric("Active days", valueOrUnavailable(usage?.activeDays, ctx))}
+    ${metric("Messages", valueOrUnavailable(usage?.totalMessages, ctx))}
+    ${metric("Tool calls", valueOrUnavailable(usage?.toolCalls ?? report.metrics.toolCalls, ctx))}
+    ${metric("Files modified", valueOrUnavailable(usage?.filesModified ?? report.metrics.filesTouched, ctx))}
+    ${metric("Lines + / -", `${valueOrUnavailable(usage?.linesAdded, ctx)} / ${valueOrUnavailable(usage?.linesRemoved, ctx)}`)}
   </div></section>`;
 }
 
 function renderProjectBreakdown(report: InsightReport, locale: SupportedLocale): string {
-  const labels = sectionLabels(locale);
+  const ctx = createI18n(locale);
   const rows = report.usageAnalytics?.projectBreakdown?.length
     ? report.usageAnalytics.projectBreakdown
-        .map((project) => `<tr><td>${escapeHtml(project.projectName)}</td><td>${project.sessions}</td><td>${project.messages}</td><td>${project.toolCalls}</td><td>${valueOrUnknown(project.filesModified)}</td></tr>`)
+        .map((project) => `<tr><td>${escapeHtml(project.projectName)}</td><td>${project.sessions}</td><td>${project.messages}</td><td>${project.toolCalls}</td><td>${valueOrUnavailable(project.filesModified, ctx)}</td></tr>`)
         .join("")
     : report.projects
-        .map((project) => `<tr><td>${escapeHtml(project.name)}</td><td>1</td><td>unknown</td><td>unknown</td><td>${valueOrUnknown(project.evidence.length)}</td></tr>`)
+        .map((project) => `<tr><td>${escapeHtml(project.name)}</td><td>1</td><td>${t(ctx, "report.render.notAvailable")}</td><td>${t(ctx, "report.render.notAvailable")}</td><td>${valueOrUnavailable(project.evidence.length, ctx)}</td></tr>`)
         .join("");
-  return `<section><h2>${escapeHtml(labels.projectBreakdown)}</h2><table><thead><tr><th>project</th><th>sessions</th><th>messages</th><th>tool calls</th><th>evidence/files</th></tr></thead><tbody>${rows || emptyRow(5)}</tbody></table></section>`;
+  return `<section><h2>${escapeHtml(t(ctx, "report.section.projectRadar"))}</h2><table><thead><tr><th>project</th><th>sessions</th><th>messages</th><th>tool calls</th><th>evidence/files</th></tr></thead><tbody>${rows || emptyRow(5, ctx)}</tbody></table></section>`;
 }
 
 function renderToolUsage(report: InsightReport, locale: SupportedLocale): string {
-  const labels = sectionLabels(locale);
+  const ctx = createI18n(locale);
   const stats = report.usageAnalytics?.toolActionStats ?? {};
   const rows = Object.entries(stats)
-    .map(([name, stat]) => `<tr><td>${escapeHtml(name)}</td><td>${stat.total}</td><td>${valueOrUnknown(stat.accepted)}</td><td>${valueOrUnknown(stat.rejected)}</td><td>${valueOrUnknown(stat.errorCount)}</td></tr>`)
+    .map(([name, stat]) => `<tr><td>${escapeHtml(name)}</td><td>${stat.total}</td><td>${valueOrUnavailable(stat.accepted, ctx)}</td><td>${valueOrUnavailable(stat.rejected, ctx)}</td><td>${valueOrUnavailable(stat.errorCount, ctx)}</td></tr>`)
     .join("");
-  return `<section><h2>${escapeHtml(labels.toolUsage)}</h2><table><thead><tr><th>tool</th><th>total</th><th>accepted</th><th>rejected</th><th>errors</th></tr></thead><tbody>${rows || emptyRow(5)}</tbody></table></section>`;
+  return `<section><h2>${escapeHtml(t(ctx, "report.section.codexUsage"))}</h2><table><thead><tr><th>tool</th><th>total</th><th>accepted</th><th>rejected</th><th>errors</th></tr></thead><tbody>${rows || emptyRow(5, ctx)}</tbody></table></section>`;
 }
 
 function renderCommandAnalysis(report: InsightReport, locale: SupportedLocale): string {
-  const labels = sectionLabels(locale);
+  const ctx = createI18n(locale);
   const stats = report.usageAnalytics?.commandStats;
   const failures = Object.entries(stats?.failureCategories ?? {}).map(([name, count]) => `${name}: ${count}`);
-  return `<section><h2>${escapeHtml(labels.commandAnalysis)}</h2><ul>
-    <li>Total commands: ${valueOrUnknown(stats?.totalCommands ?? report.metrics.testCommands.length + report.metrics.buildCommands.length)}</li>
-    <li>Failed commands: ${valueOrUnknown(stats?.failedCommands)}</li>
-    <li>Failure categories: ${escapeHtml(failures.join(", ") || "unknown")}</li>
+  return `<section><h2>${escapeHtml(t(ctx, "report.section.problemPatterns"))}</h2><ul>
+    <li>Total commands: ${valueOrUnavailable(stats?.totalCommands ?? report.metrics.testCommands.length + report.metrics.buildCommands.length, ctx)}</li>
+    <li>Failed commands: ${valueOrUnavailable(stats?.failedCommands, ctx)}</li>
+    <li>Failure categories: ${escapeHtml(failures.join(", ") || t(ctx, "common.none"))}</li>
   </ul></section>`;
 }
 
 function renderWorkspaceQualityMatrix(report: InsightReport, locale: SupportedLocale): string {
-  const labels = sectionLabels(locale);
+  const ctx = createI18n(locale);
   const rows = report.projects
     .map((project) => {
       const summary = project.qualitySummary;
-      return `<tr><td>${escapeHtml(project.name)}</td><td>${yesNo(summary?.hasTestScript)}</td><td>${yesNo(summary?.hasCi)}</td><td>${yesNo(summary?.hasTestFiles)}</td><td>${yesNo(summary?.hasBuildConfig)}</td><td>${yesNo(summary?.hasExecutedTestEvidence)}</td><td>${yesNo(summary?.hasLint)}</td><td>${yesNo(summary?.hasTypecheck)}</td><td>${yesNo(summary?.hasDocker)}</td><td>${escapeHtml(summary?.unknownReason ?? "")}</td></tr>`;
+      return `<tr><td>${escapeHtml(project.name)}</td><td>${yesNo(summary?.hasTestScript, ctx)}</td><td>${yesNo(summary?.hasCi, ctx)}</td><td>${yesNo(summary?.hasTestFiles, ctx)}</td><td>${yesNo(summary?.hasBuildConfig, ctx)}</td><td>${yesNo(summary?.hasExecutedTestEvidence, ctx)}</td><td>${yesNo(summary?.hasLint, ctx)}</td><td>${yesNo(summary?.hasTypecheck, ctx)}</td><td>${yesNo(summary?.hasDocker, ctx)}</td><td>${escapeHtml(summary?.unknownReason ?? "")}</td></tr>`;
     })
     .join("");
-  return `<section><h2>${escapeHtml(labels.workspaceQuality)}</h2><table><thead><tr><th>project</th><th>test script</th><th>CI</th><th>test files</th><th>build config</th><th>executed test evidence</th><th>lint</th><th>typecheck</th><th>docker</th><th>unknown reason</th></tr></thead><tbody>${rows || emptyRow(10)}</tbody></table></section>`;
+  return `<section><h2>${escapeHtml(t(ctx, "report.section.workspaceQuality"))}</h2><table><thead><tr><th>project</th><th>test script</th><th>CI</th><th>test files</th><th>build config</th><th>executed test evidence</th><th>lint</th><th>typecheck</th><th>docker</th><th>unknown reason</th></tr></thead><tbody>${rows || emptyRow(10, ctx)}</tbody></table></section>`;
 }
 
 function renderDeepTopics(report: InsightReport, locale: SupportedLocale): string {
-  const labels = sectionLabels(locale);
+  const ctx = createI18n(locale);
   const rows = report.deepTopics
-    .map((topic) => `<tr><td>${escapeHtml(topic.topic)}</td><td>${topic.mentionedProjects}/${topic.totalProjects}</td><td>${escapeHtml(JSON.stringify(topic.maturityDistribution))}</td><td>${escapeHtml(topic.recommendedReferenceProjects.join(", ") || "unknown")}</td></tr>`)
+    .map((topic) => `<tr><td>${escapeHtml(topic.topic)}</td><td>${topic.mentionedProjects}/${topic.totalProjects}</td><td>${escapeHtml(distributionSummary(topic))}</td><td>${escapeHtml(topic.recommendedReferenceProjects.join(", ") || t(ctx, "report.render.noReference"))}</td></tr>`)
     .join("");
-  return `<section><h2>${escapeHtml(labels.deepTopics)}</h2><table><thead><tr><th>topic</th><th>mentions</th><th>maturity</th><th>reference</th></tr></thead><tbody>${rows || emptyRow(4)}</tbody></table></section>`;
+  return `<section><h2>${escapeHtml(t(ctx, "report.section.topicOverview"))}</h2><table><thead><tr><th>topic</th><th>mentions</th><th>maturity</th><th>reference</th></tr></thead><tbody>${rows || emptyRow(4, ctx)}</tbody></table></section>`;
 }
 
 function renderRagDeepDive(topic: DeepTopicReport, locale: SupportedLocale): string {
-  const labels = sectionLabels(locale);
+  const ctx = createI18n(locale);
   const projectRows = topic.projectMaturity
     .map((project) => `<tr><td>${escapeHtml(project.projectName)}</td><td>${escapeHtml(project.maturity)}</td><td>${project.implementedDimensions.length}</td><td>${escapeHtml(project.missingDimensions.slice(0, 5).join(", "))}</td></tr>`)
     .join("");
-  return `<section><h2>${escapeHtml(labels.ragDeepDive)}</h2>
+  return `<section><h2>${escapeHtml(t(ctx, "report.section.ragDeepDive"))}</h2>
     <p>${escapeHtml(topic.crossProjectFindings.join(" "))}</p>
-    <h3>${locale === "zh-CN" ? "成熟度分布" : "Maturity Distribution"}</h3>
-    <p>${escapeHtml(JSON.stringify(topic.maturityDistribution))}</p>
-    <h3>${locale === "zh-CN" ? "项目成熟度" : "Project Maturity"}</h3>
+    <h3>${escapeHtml(t(ctx, "report.section.ragArchitectureGaps"))}</h3>
+    <p>${escapeHtml(distributionSummary(topic))}</p>
+    <h3>${escapeHtml(t(ctx, "report.section.ragProjectMaturity"))}</h3>
     <table><thead><tr><th>project</th><th>maturity</th><th>dimensions</th><th>missing</th></tr></thead><tbody>${projectRows}</tbody></table>
-    <h3>${locale === "zh-CN" ? "推荐架构" : "Recommended Architecture"}</h3>
+    <h3>${escapeHtml(t(ctx, "report.section.ragRoadmap"))}</h3>
     <p>${escapeHtml(topic.recommendedArchitecture.stages.join(" -> "))}</p>
-    <h3>${locale === "zh-CN" ? "平台化建议" : "Platformization"}</h3>
+    <h3>${escapeHtml(t(ctx, "report.topic.platform.match"))}</h3>
     <p>${escapeHtml(topic.platformizationRecommendation.reason)}</p>
   </section>`;
 }
 
 function renderAgentRules(report: InsightReport, locale: SupportedLocale): string {
-  const labels = sectionLabels(locale);
+  const ctx = createI18n(locale);
   const rules = report.agentRuleSuggestions ?? [];
   const html = rules
     .map((rule) => `<div class="copy"><label><input type="checkbox"> <strong>${escapeHtml(rule.title)}</strong></label><p>${escapeHtml(rule.reason)}</p><pre>${escapeHtml(rule.ruleText)}</pre></div>`)
     .join("");
-  return `<section><h2>${escapeHtml(labels.agentRules)}</h2><p>${locale === "zh-CN" ? "单条 copy：复制任一规则文本。Copy all：复制本节所有规则文本。" : "Single copy: copy any rule text. Copy all: copy every rule in this section."}</p>${html || `<p>${locale === "zh-CN" ? "没有 AGENTS.md 建议。" : "No AGENTS.md suggestions."}</p>`}</section>`;
+  return `<section><h2>${escapeHtml(t(ctx, "report.section.agentRules"))}</h2><p>${escapeHtml(t(ctx, "report.render.agentRulesCopy"))}</p>${html || `<p>${escapeHtml(t(ctx, "report.render.noAgentRules"))}</p>`}</section>`;
 }
 
 function renderDataQuality(report: InsightReport, locale: SupportedLocale): string {
-  const labels = sectionLabels(locale);
+  const ctx = createI18n(locale);
   const rows = report.dataQuality
     .map((item) => `<tr><td>${escapeHtml(item.source)}</td><td>${escapeHtml(item.status)}</td><td>${escapeHtml(item.reason)}</td><td>${escapeHtml(item.attemptedSources.join(", "))}</td></tr>`)
     .join("");
-  return `<section><h2>${escapeHtml(labels.dataQuality)}</h2><table><thead><tr><th>source</th><th>status</th><th>reason</th><th>attempted</th></tr></thead><tbody>${rows || emptyRow(4)}</tbody></table></section>`;
+  return `<section><h2>${escapeHtml(t(ctx, "report.section.dataQuality"))}</h2><table><thead><tr><th>source</th><th>status</th><th>reason</th><th>attempted</th></tr></thead><tbody>${rows || emptyRow(4, ctx)}</tbody></table></section>`;
 }
 
 function renderTrend(report: InsightReport, locale: SupportedLocale): string {
-  const labels = sectionLabels(locale);
-  return `<section><h2>${escapeHtml(labels.trend)}</h2><p>${escapeHtml(report.trend.message)}</p><pre>${escapeHtml(JSON.stringify(report.trend.deltas, null, 2))}</pre></section>`;
+  const ctx = createI18n(locale);
+  const deltas = trendDeltaLines(report, ctx).map((item) => `<li>${escapeHtml(item)}</li>`).join("");
+  return `<section><h2>${escapeHtml(t(ctx, "report.section.trend"))}</h2><p>${escapeHtml(report.trend.message)}</p><ul>${deltas}</ul></section>`;
 }
 
-function renderSection(title: string, items?: string[]): string {
-  return `<section><h2>${escapeHtml(title)}</h2>${renderList(items)}</section>`;
+function renderSection(title: string, items: string[] | undefined, ctx: ReturnType<typeof createI18n>): string {
+  return `<section><h2>${escapeHtml(title)}</h2>${renderList(items, ctx)}</section>`;
 }
 
-function renderList(items?: string[]): string {
-  return items?.length ? `<ul>${items.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>` : "<p>unknown</p>";
+function renderList(items: string[] | undefined, ctx: ReturnType<typeof createI18n>): string {
+  return items?.length ? `<ul>${items.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>` : `<p>${escapeHtml(t(ctx, "report.render.emptySection"))}</p>`;
 }
 
 function metric(label: string, value: string): string {
   return `<div class="metric"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`;
 }
 
-function markdownSection(title: string, items?: string[]): string[] {
-  return ["", `## ${title}`, "", ...markdownList(items, "unknown")];
+function markdownSection(title: string, items: string[] | undefined, ctx: ReturnType<typeof createI18n>): string[] {
+  return ["", `## ${title}`, "", ...markdownList(items, t(ctx, "report.render.emptySection"))];
 }
 
 function markdownUsageMetrics(report: InsightReport, locale: SupportedLocale): string[] {
-  const labels = sectionLabels(locale);
+  const ctx = createI18n(locale);
   const usage = report.usageAnalytics;
   return [
     "",
-    `## ${labels.usageMetrics}`,
+    `## ${t(ctx, "report.section.coverage")}`,
     "",
-    `- Sessions: ${valueOrUnknown(usage?.qualifyingSessions ?? usage?.totalSessions)}`,
-    `- Active days: ${valueOrUnknown(usage?.activeDays)}`,
-    `- Messages: ${valueOrUnknown(usage?.totalMessages)}`,
-    `- Tool calls: ${valueOrUnknown(usage?.toolCalls ?? report.metrics.toolCalls)}`,
-    `- Files modified: ${valueOrUnknown(usage?.filesModified ?? report.metrics.filesTouched)}`,
-    `- Lines added / removed: ${valueOrUnknown(usage?.linesAdded)} / ${valueOrUnknown(usage?.linesRemoved)}`
+    `- Sessions: ${valueOrUnavailable(usage?.qualifyingSessions ?? usage?.totalSessions, ctx)}`,
+    `- Active days: ${valueOrUnavailable(usage?.activeDays, ctx)}`,
+    `- Messages: ${valueOrUnavailable(usage?.totalMessages, ctx)}`,
+    `- Tool calls: ${valueOrUnavailable(usage?.toolCalls ?? report.metrics.toolCalls, ctx)}`,
+    `- Files modified: ${valueOrUnavailable(usage?.filesModified ?? report.metrics.filesTouched, ctx)}`,
+    `- Lines added / removed: ${valueOrUnavailable(usage?.linesAdded, ctx)} / ${valueOrUnavailable(usage?.linesRemoved, ctx)}`
   ];
 }
 
 function markdownProjectBreakdown(report: InsightReport, locale: SupportedLocale): string[] {
-  const labels = sectionLabels(locale);
+  const ctx = createI18n(locale);
   const rows = report.usageAnalytics?.projectBreakdown?.length
-    ? report.usageAnalytics.projectBreakdown.map((project) => `| ${project.projectName} | ${project.sessions} | ${project.messages} | ${project.toolCalls} | ${valueOrUnknown(project.filesModified)} |`)
-    : report.projects.map((project) => `| ${project.name} | 1 | unknown | unknown | ${project.evidence.length} |`);
-  return ["", `## ${labels.projectBreakdown}`, "", "| project | sessions | messages | tool calls | files/evidence |", "|---|---:|---:|---:|---:|", ...(rows.length ? rows : ["| unknown | unknown | unknown | unknown | unknown |"])];
+    ? report.usageAnalytics.projectBreakdown.map((project) => `| ${project.projectName} | ${project.sessions} | ${project.messages} | ${project.toolCalls} | ${valueOrUnavailable(project.filesModified, ctx)} |`)
+    : report.projects.map((project) => `| ${project.name} | 1 | ${t(ctx, "report.render.notAvailable")} | ${t(ctx, "report.render.notAvailable")} | ${project.evidence.length} |`);
+  return ["", `## ${t(ctx, "report.section.projectRadar")}`, "", "| project | sessions | messages | tool calls | files/evidence |", "|---|---:|---:|---:|---:|", ...(rows.length ? rows : [`| ${t(ctx, "report.render.notAvailable")} | ${t(ctx, "report.render.notAvailable")} | ${t(ctx, "report.render.notAvailable")} | ${t(ctx, "report.render.notAvailable")} | ${t(ctx, "report.render.notAvailable")} |`])];
 }
 
 function markdownToolUsage(report: InsightReport, locale: SupportedLocale): string[] {
-  const labels = sectionLabels(locale);
-  const rows = Object.entries(report.usageAnalytics?.toolActionStats ?? {}).map(([name, stat]) => `| ${name} | ${stat.total} | ${valueOrUnknown(stat.accepted)} | ${valueOrUnknown(stat.rejected)} | ${valueOrUnknown(stat.errorCount)} |`);
-  return ["", `## ${labels.toolUsage}`, "", "| tool | total | accepted | rejected | errors |", "|---|---:|---:|---:|---:|", ...(rows.length ? rows : ["| unknown | unknown | unknown | unknown | unknown |"])];
+  const ctx = createI18n(locale);
+  const rows = Object.entries(report.usageAnalytics?.toolActionStats ?? {}).map(([name, stat]) => `| ${name} | ${stat.total} | ${valueOrUnavailable(stat.accepted, ctx)} | ${valueOrUnavailable(stat.rejected, ctx)} | ${valueOrUnavailable(stat.errorCount, ctx)} |`);
+  return ["", `## ${t(ctx, "report.section.codexUsage")}`, "", "| tool | total | accepted | rejected | errors |", "|---|---:|---:|---:|---:|", ...(rows.length ? rows : [`| ${t(ctx, "report.render.notAvailable")} | ${t(ctx, "report.render.notAvailable")} | ${t(ctx, "report.render.notAvailable")} | ${t(ctx, "report.render.notAvailable")} | ${t(ctx, "report.render.notAvailable")} |`])];
 }
 
 function markdownCommandAnalysis(report: InsightReport, locale: SupportedLocale): string[] {
-  const labels = sectionLabels(locale);
+  const ctx = createI18n(locale);
   const stats = report.usageAnalytics?.commandStats;
-  return ["", `## ${labels.commandAnalysis}`, "", `- Total commands: ${valueOrUnknown(stats?.totalCommands ?? report.metrics.testCommands.length + report.metrics.buildCommands.length)}`, `- Failed commands: ${valueOrUnknown(stats?.failedCommands)}`, `- Failure categories: ${JSON.stringify(stats?.failureCategories ?? {})}`];
+  const failures = Object.entries(stats?.failureCategories ?? {}).map(([name, count]) => `${name}: ${count}`);
+  return ["", `## ${t(ctx, "report.section.problemPatterns")}`, "", `- Total commands: ${valueOrUnavailable(stats?.totalCommands ?? report.metrics.testCommands.length + report.metrics.buildCommands.length, ctx)}`, `- Failed commands: ${valueOrUnavailable(stats?.failedCommands, ctx)}`, `- Failure categories: ${failures.join(", ") || t(ctx, "common.none")}`];
 }
 
 function markdownWorkspaceQuality(report: InsightReport, locale: SupportedLocale): string[] {
-  const labels = sectionLabels(locale);
+  const ctx = createI18n(locale);
   const rows = report.projects.map((project) => {
     const summary = project.qualitySummary;
-    return `| ${project.name} | ${yesNo(summary?.hasTestScript)} | ${yesNo(summary?.hasCi)} | ${yesNo(summary?.hasTestFiles)} | ${yesNo(summary?.hasBuildConfig)} | ${yesNo(summary?.hasExecutedTestEvidence)} | ${yesNo(summary?.hasLint)} | ${yesNo(summary?.hasTypecheck)} | ${yesNo(summary?.hasDocker)} | ${summary?.unknownReason ?? ""} |`;
+    return `| ${project.name} | ${yesNo(summary?.hasTestScript, ctx)} | ${yesNo(summary?.hasCi, ctx)} | ${yesNo(summary?.hasTestFiles, ctx)} | ${yesNo(summary?.hasBuildConfig, ctx)} | ${yesNo(summary?.hasExecutedTestEvidence, ctx)} | ${yesNo(summary?.hasLint, ctx)} | ${yesNo(summary?.hasTypecheck, ctx)} | ${yesNo(summary?.hasDocker, ctx)} | ${summary?.unknownReason ?? ""} |`;
   });
-  return ["", `## ${labels.workspaceQuality}`, "", "| project | test script | CI | test files | build config | executed test evidence | lint | typecheck | docker | unknown reason |", "|---|---|---|---|---|---|---|---|---|---|", ...(rows.length ? rows : ["| unknown | unknown | unknown | unknown | unknown | unknown | unknown | unknown | unknown | unknown |"])];
+  return ["", `## ${t(ctx, "report.section.workspaceQuality")}`, "", "| project | test script | CI | test files | build config | executed test evidence | lint | typecheck | docker | unknown reason |", "|---|---|---|---|---|---|---|---|---|---|", ...(rows.length ? rows : [`| ${t(ctx, "report.render.notAvailable")} | ${t(ctx, "report.render.notAvailable")} | ${t(ctx, "report.render.notAvailable")} | ${t(ctx, "report.render.notAvailable")} | ${t(ctx, "report.render.notAvailable")} | ${t(ctx, "report.render.notAvailable")} | ${t(ctx, "report.render.notAvailable")} | ${t(ctx, "report.render.notAvailable")} | ${t(ctx, "report.render.notAvailable")} | ${t(ctx, "report.render.notAvailable")} |`])];
 }
 
 function markdownDeepTopics(report: InsightReport, locale: SupportedLocale): string[] {
-  const labels = sectionLabels(locale);
-  const rows = report.deepTopics.map((topic) => `| ${topic.topic} | ${topic.mentionedProjects}/${topic.totalProjects} | ${JSON.stringify(topic.maturityDistribution)} | ${topic.recommendedReferenceProjects.join(", ") || "unknown"} |`);
-  return ["", `## ${labels.deepTopics}`, "", "| topic | mentions | maturity | reference |", "|---|---:|---|---|", ...(rows.length ? rows : ["| unknown | unknown | unknown | unknown |"])];
+  const ctx = createI18n(locale);
+  const rows = report.deepTopics.map((topic) => `| ${topic.topic} | ${topic.mentionedProjects}/${topic.totalProjects} | ${distributionSummary(topic)} | ${topic.recommendedReferenceProjects.join(", ") || t(ctx, "report.render.noReference")} |`);
+  return ["", `## ${t(ctx, "report.section.topicOverview")}`, "", "| topic | mentions | maturity | reference |", "|---|---:|---|---|", ...(rows.length ? rows : [`| ${t(ctx, "report.render.notAvailable")} | ${t(ctx, "report.render.notAvailable")} | ${t(ctx, "report.render.notAvailable")} | ${t(ctx, "report.render.notAvailable")} |`])];
 }
 
 function markdownRag(report: InsightReport, locale: SupportedLocale): string[] {
   const rag = report.deepTopics.find((topic) => topic.topic === "rag");
   if (!rag) return [];
-  const labels = sectionLabels(locale);
-  return ["", `## ${labels.ragDeepDive}`, "", ...markdownList(rag.crossProjectFindings, "unknown"), "", `### ${locale === "zh-CN" ? "推荐架构" : "Recommended Architecture"}`, "", rag.recommendedArchitecture.stages.join(" -> "), "", `### ${locale === "zh-CN" ? "平台化建议" : "Platformization"}`, "", rag.platformizationRecommendation.reason];
+  const ctx = createI18n(locale);
+  return ["", `## ${t(ctx, "report.section.ragDeepDive")}`, "", ...markdownList(rag.crossProjectFindings, t(ctx, "report.render.emptySection")), "", `### ${t(ctx, "report.section.ragRoadmap")}`, "", rag.recommendedArchitecture.stages.join(" -> "), "", `### ${t(ctx, "report.topic.platform.match")}`, "", rag.platformizationRecommendation.reason];
 }
 
 function markdownAgentRules(report: InsightReport, locale: SupportedLocale): string[] {
-  const labels = sectionLabels(locale);
+  const ctx = createI18n(locale);
   const rules = report.agentRuleSuggestions ?? [];
   return [
     "",
-    `## ${labels.agentRules}`,
+    `## ${t(ctx, "report.section.agentRules")}`,
     "",
-    locale === "zh-CN" ? "单条 copy：复制任一规则文本。Copy all：复制本节所有规则文本。" : "Single copy: copy any rule text. Copy all: copy every rule in this section.",
+    t(ctx, "report.render.agentRulesCopy"),
     "",
     ...(rules.length
       ? rules.flatMap((rule) => [`- [ ] ${rule.title} (${rule.severity})`, "", "```text", rule.ruleText, "```", "", `Reason: ${rule.reason}`, ""])
-      : ["- unknown"])
+      : [`- ${t(ctx, "report.render.noAgentRules")}`])
   ];
 }
 
 function markdownDataQuality(report: InsightReport, locale: SupportedLocale): string[] {
-  const labels = sectionLabels(locale);
-  return ["", `## ${labels.dataQuality}`, "", ...markdownList(report.dataQuality.map((item) => `${item.source}: ${item.status} - ${item.reason}`), "No data quality warnings.")];
+  const ctx = createI18n(locale);
+  return ["", `## ${t(ctx, "report.section.dataQuality")}`, "", ...markdownList(report.dataQuality.map((item) => `${item.source}: ${item.status} - ${item.reason}`), t(ctx, "dataQuality.summary.none"))];
 }
 
 function markdownTrend(report: InsightReport, locale: SupportedLocale): string[] {
-  const labels = sectionLabels(locale);
-  return ["", `## ${labels.trend}`, "", report.trend.message, "", "```json", JSON.stringify(report.trend.deltas, null, 2), "```"];
+  const ctx = createI18n(locale);
+  return ["", `## ${t(ctx, "report.section.trend")}`, "", report.trend.message, "", ...markdownList(trendDeltaLines(report, ctx), t(ctx, "report.render.trendNoDeltas"))];
 }
 
 function markdownList(items: string[] | undefined, empty: string): string[] {
   return items?.length ? items.map((item) => `- ${item}`) : [`- ${empty}`];
 }
 
-function valueOrUnknown(value: number | string | undefined): string {
-  return value === undefined ? "unknown" : String(value);
+function valueOrUnavailable(value: number | string | undefined, ctx: ReturnType<typeof createI18n>): string {
+  return value === undefined ? t(ctx, "report.render.notAvailable") : String(value);
 }
 
-function yesNo(value: boolean | undefined): string {
-  if (value === undefined) return "unknown";
-  return value ? "yes" : "no";
+function yesNo(value: boolean | undefined, ctx: ReturnType<typeof createI18n>): string {
+  if (value === undefined) return t(ctx, "common.notDetected");
+  return value ? t(ctx, "common.yes") : t(ctx, "common.no");
 }
 
-function emptyRow(columns: number): string {
-  return `<tr><td colspan="${columns}">unknown</td></tr>`;
+function emptyRow(columns: number, ctx: ReturnType<typeof createI18n>): string {
+  return `<tr><td colspan="${columns}">${escapeHtml(t(ctx, "report.render.notAvailable"))}</td></tr>`;
+}
+
+function distributionSummary(topic: DeepTopicReport): string {
+  return Object.entries(topic.maturityDistribution)
+    .filter(([, count]) => count > 0)
+    .map(([maturity, count]) => `${maturity}:${count}`)
+    .join(", ");
+}
+
+function trendDeltaLines(report: InsightReport, ctx: ReturnType<typeof createI18n>): string[] {
+  const entries = Object.entries(report.trend.deltas ?? {}).filter(([, value]) => value !== undefined);
+  if (!entries.length) {
+    return [t(ctx, "report.render.trendNoDeltas")];
+  }
+  return entries.map(([metricName, value]) =>
+    t(ctx, "report.render.trendDelta", {
+      metric: metricName,
+      value: Array.isArray(value) ? value.length : String(value)
+    })
+  );
 }
 
 function escapeHtml(value: string): string {

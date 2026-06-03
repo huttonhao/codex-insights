@@ -3,7 +3,8 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { repoRoot, walkFiles } from "./testUtils.js";
 
-const forbidden = /locale\s*(?:===|!==)\s*["']zh-CN["']|["']zh-CN["']\s*(?:===|!==)\s*locale/;
+const forbidden =
+  /locale\s*(?:===|!==)\s*["']zh-CN["']|["']zh-CN["']\s*(?:===|!==)\s*locale|isLocale\([^)]*["']zh-CN["']/;
 
 describe("i18n locale branching", () => {
   it("does not branch on zh-CN outside the i18n layer", () => {
