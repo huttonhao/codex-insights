@@ -2,6 +2,7 @@ import type { DataQuality } from "./dataQuality.js";
 import type { CommandEvidenceSummary } from "./command.js";
 import type { Evidence } from "./evidence.js";
 import type { TopicMention, TopicMaturity } from "./topic.js";
+import type { ProjectQualitySummary } from "./workspaceQuality.js";
 
 export interface ScannedFile {
   relativePath: string;
@@ -22,6 +23,7 @@ export interface ProjectProfile {
   evidence: Evidence[];
   maturityByTopic: Record<string, TopicMaturity>;
   commandEvidence?: CommandEvidenceSummary;
+  qualitySummary?: ProjectQualitySummary;
   files: ScannedFile[];
 }
 

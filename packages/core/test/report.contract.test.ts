@@ -19,7 +19,7 @@ describe("report.contract", () => {
       now: "2026-06-03T08:00:00.000Z"
     });
 
-    expect(report.schemaVersion).toBe("2.0");
+    expect(report.schemaVersion).toBe("3.0");
     expect(report.scanSummary).toMatchObject({
       mode: "workspace",
       workspacePath,

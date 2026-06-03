@@ -1,8 +1,12 @@
 import type { SupportedLocale } from "../i18n/localeResolver.js";
+import type { AgentRuleSuggestion } from "./agentRuleSuggestion.js";
 import type { CommandEvidence } from "./command.js";
 import type { DataQuality } from "./dataQuality.js";
+import type { SessionFacet } from "./sessionFacet.js";
 import type { DeepTopicReport } from "./topic.js";
 import type { ProjectProfile } from "./project.js";
+import type { UsageAnalytics } from "./usageAnalytics.js";
+import type { WorkspaceQualitySummary } from "./workspaceQuality.js";
 
 export interface RepositoryInfo {
   root: string;
@@ -22,10 +26,11 @@ export interface InsightMetrics {
   testsRunCount?: number;
   testCommands: CommandEvidence[];
   buildCommands: CommandEvidence[];
+  workspaceQuality?: WorkspaceQualitySummary;
 }
 
 export interface ScanSummary {
-  mode: "session" | "repo" | "workspace";
+  mode: "session" | "repo" | "workspace" | "codex-history";
   repoPath?: string;
   workspacePath?: string;
   projectsScanned: number;
@@ -54,8 +59,29 @@ export interface TrendSummary {
   };
 }
 
+export interface CodexHistoryReportSummary {
+  sessionsDir?: string;
+  scannedFiles: number;
+  parsedSessions: number;
+  qualifyingSessions: number;
+  skippedSessions: number;
+  dryRun: boolean;
+}
+
+export interface ProductInsightSections {
+  atAGlance: string[];
+  whatYouWorkOn: string[];
+  howYouUseCodex: string[];
+  impressiveThings: string[];
+  whereThingsGoWrong: string[];
+  featuresToTry: string[];
+  suggestedAgentsAdditions: string[];
+  newWaysToUseCodex: string[];
+  onTheHorizon: string[];
+}
+
 export interface InsightReport {
-  schemaVersion: "2.0";
+  schemaVersion: "3.0";
   id: string;
   sessionId?: string;
   repository: RepositoryInfo;
@@ -69,10 +95,16 @@ export interface InsightReport {
   scanSummary: ScanSummary;
   projects: ProjectProfile[];
   deepTopics: DeepTopicReport[];
+  usageAnalytics?: UsageAnalytics;
+  sessionFacets?: SessionFacet[];
+  agentRuleSuggestions?: AgentRuleSuggestion[];
+  workspaceQuality?: WorkspaceQualitySummary;
+  codexHistory?: CodexHistoryReportSummary;
+  productInsights?: ProductInsightSections;
 }
 
 export interface GenerateInsightsReportOptions {
-  mode?: "session" | "repo" | "workspace";
+  mode?: "session" | "repo" | "workspace" | "codex-history";
   locale: SupportedLocale;
   repoPath?: string;
   workspacePath?: string;
@@ -88,4 +120,14 @@ export interface GenerateInsightsReportOptions {
   include?: string[];
   exclude?: string[];
   reportsDir?: string;
+  codexHistory?: boolean;
+  sessionsDir?: string;
+  limit?: number;
+  minUserMessages?: number;
+  minDurationMinutes?: number;
+  dryRun?: boolean;
+  noLlm?: boolean;
+  llmFacets?: boolean;
+  redact?: boolean;
+  includeTranscriptSnippets?: boolean;
 }

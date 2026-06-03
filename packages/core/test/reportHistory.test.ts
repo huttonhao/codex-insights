@@ -165,7 +165,7 @@ function makeReport(overrides: Partial<InsightReport> = {}): InsightReport {
       message: "This is the first saved report for this repository.",
       deltas: {}
     },
-    schemaVersion: "2.0",
+    schemaVersion: "3.0",
     dataQuality: [],
     scanSummary: {
       mode: "repo",

@@ -12,6 +12,14 @@ export interface RagPlatformizationRecommendation {
   migrationPlan: string[];
 }
 
+export interface GenericPlatformizationInput {
+  topic: string;
+  mentionedProjects: number;
+  repeatedPatterns: string[];
+  referenceProjects: string[];
+  locale?: "en-US" | "zh-CN";
+}
+
 const coreModules = [
   "Source Connector",
   "Document Normalizer",
@@ -75,6 +83,52 @@ export function buildRagPlatformizationRecommendation(
             "Extract ingestion, chunking, embedding, indexing, retrieval, reranking, citation checks, evaluation, observability, and tenant isolation into shared modules.",
             "Keep business-specific source permissions and prompt policy in each product project.",
             "Migrate one partial project first, then stop new duplicated RAG implementations unless they target a missing platform capability."
+          ]
+  };
+}
+
+export function buildGenericPlatformizationRecommendation(
+  input: GenericPlatformizationInput
+): RagPlatformizationRecommendation {
+  const locale = input.locale ?? "en-US";
+  const shouldPlatformize =
+    input.mentionedProjects >= 2 &&
+    (input.repeatedPatterns.length > 0 || input.referenceProjects.length > 0);
+  if (!shouldPlatformize) {
+    return {
+      shouldPlatformize: false,
+      reason:
+        locale === "zh-CN"
+          ? `${input.topic} 的跨项目证据还不足，先保持项目内治理。`
+          : `There is not enough cross-project ${input.topic} evidence to justify platformization yet.`,
+      proposedModules: [],
+      migrationPlan: [
+        locale === "zh-CN"
+          ? "继续收集实现证据、质量证据和重复模式，再决定公共边界。"
+          : "Collect more implementation, quality, and repetition evidence before drawing shared boundaries."
+      ]
+    };
+  }
+
+  const reference = input.referenceProjects[0] ?? "the strongest implementation";
+  return {
+    shouldPlatformize: true,
+    reason:
+      locale === "zh-CN"
+        ? `${input.topic} 已在多个项目中出现，且存在重复信号，适合沉淀统一契约和质量门禁。`
+        : `${input.topic} appears across multiple projects with repeated signals, making shared contracts and quality gates worthwhile.`,
+    proposedModules: input.repeatedPatterns.slice(0, 8),
+    migrationPlan:
+      locale === "zh-CN"
+        ? [
+            `以 ${reference} 作为 ${input.topic} 参考实现候选。`,
+            "先抽公共接口、配置模型和质量门禁，再迁移一个 partial 项目验证边界。",
+            "业务差异保留在项目侧，公共能力进入共享平台。"
+          ]
+        : [
+            `Use ${reference} as the ${input.topic} reference candidate.`,
+            "Extract shared interfaces, configuration, and quality gates, then migrate one partial project to validate boundaries.",
+            "Keep product-specific policy in projects while moving shared capability into a platform module."
           ]
   };
 }

@@ -1,5 +1,6 @@
 import { basename, resolve } from "node:path";
 import { collectCodexSession } from "../collectors/codexSessionCollector.js";
+import { collectCodexSessionHistory } from "../collectors/codexSessionHistoryCollector.js";
 import { collectCommandEvidence } from "../collectors/commandEvidenceCollector.js";
 import { collectGitContext } from "../collectors/gitCollector.js";
 import { scanWorkspace } from "../collectors/workspaceScanner.js";
@@ -14,8 +15,13 @@ import type {
 } from "../model/report.js";
 import type { DeepTopicReport } from "../model/topic.js";
 import type { ProjectProfile } from "../model/project.js";
+import { analyzeGenericTopicProjects } from "./genericTopicAnalyzer.js";
 import { analyzeRagProjects } from "./ragAnalyzer.js";
 import { createBaselineTrend } from "./trends.js";
+import {
+  summarizeProjectQuality,
+  summarizeWorkspaceQuality
+} from "./workspaceQuality.js";
 
 export interface SessionInsightInput {
   sessionId: string;
@@ -28,11 +34,14 @@ export interface SessionInsightInput {
   warnings: string[];
 }
 
+/**
+ * @deprecated Use generateInsightsReport() with session, repo, workspace, or codex-history mode.
+ */
 export function analyzeSession(input: SessionInsightInput): InsightReport {
   const now = input.generatedAt;
   const testsRunKnown = typeof input.testsRun === "number";
   return {
-    schemaVersion: "2.0",
+    schemaVersion: "3.0",
     id: `${input.sessionId}-${now}`,
     sessionId: input.sessionId,
     repository: input.repository,
@@ -79,7 +88,13 @@ export function analyzeSession(input: SessionInsightInput): InsightReport {
       completedAt: now
     },
     projects: [],
-    deepTopics: []
+    deepTopics: [],
+    productInsights: createDefaultProductInsights({
+      mode: "session",
+      projects: [],
+      deepTopics: [],
+      locale: input.locale
+    })
   };
 }
 
@@ -103,6 +118,11 @@ export async function generateInsightsReport(
   let filesTouched = 0;
   let warnings = 0;
   let commandEvidence: CommandEvidenceSummary;
+  let usageAnalytics: InsightReport["usageAnalytics"];
+  let sessionFacets: InsightReport["sessionFacets"];
+  let agentRuleSuggestions: InsightReport["agentRuleSuggestions"];
+  let codexHistory: InsightReport["codexHistory"];
+  let productInsights: InsightReport["productInsights"];
 
   if (mode === "workspace") {
     const scan = await scanWorkspace({
@@ -124,7 +144,8 @@ export async function generateInsightsReport(
     );
     projects = scan.projects.map((project, index) => ({
       ...project,
-      commandEvidence: projectCommandEvidence[index]
+      commandEvidence: projectCommandEvidence[index],
+      qualitySummary: summarizeProjectQuality(projectCommandEvidence[index] as CommandEvidenceSummary)
     }));
     scanNumbers = scan.summary;
     dataQuality.push(...scan.dataQuality);
@@ -144,7 +165,8 @@ export async function generateInsightsReport(
     commandEvidence = await collectCommandEvidence({ repoPath });
     projects = scan.projects.map((project) => ({
       ...project,
-      commandEvidence
+      commandEvidence,
+      qualitySummary: summarizeProjectQuality(commandEvidence)
     }));
     scanNumbers = scan.summary;
     dataQuality.push(...scan.dataQuality);
@@ -153,6 +175,36 @@ export async function generateInsightsReport(
       ...git.stagedFiles,
       ...git.untrackedFiles
     ]).size;
+  } else if (mode === "codex-history") {
+    const history = await collectCodexSessionHistory({
+      sessionsDir: options.sessionsDir,
+      limit: options.limit,
+      minUserMessages: options.minUserMessages,
+      minDurationMinutes: options.minDurationMinutes,
+      dryRun: options.dryRun,
+      noLlm: options.noLlm,
+      llmFacets: options.llmFacets,
+      redact: options.redact,
+      includeTranscriptSnippets: options.includeTranscriptSnippets,
+      locale: options.locale
+    });
+    dataQuality.push(...history.dataQuality);
+    usageAnalytics = history.usageAnalytics;
+    sessionFacets = history.sessionFacets;
+    agentRuleSuggestions = history.agentRuleSuggestions;
+    codexHistory = history.codexHistory;
+    productInsights = history.insightSections;
+    scanNumbers = {
+      projectsScanned: history.usageAnalytics.projectBreakdown?.length ?? 0,
+      filesScanned: history.codexHistory.scannedFiles,
+      bytesScanned: 0,
+      skippedFiles: history.codexHistory.skippedSessions
+    };
+    sessionId = history.qualifyingSessions[0]?.sessionId;
+    toolCalls = history.usageAnalytics.toolCalls ?? 0;
+    filesTouched = history.usageAnalytics.filesModified ?? 0;
+    warnings = history.qualifyingSessions.reduce((count, session) => count + session.warnings.length, 0);
+    commandEvidence = summarizeHistoryCommandEvidence(history.qualifyingSessions);
   } else {
     const session = await collectCodexSession({
       sessionFile: options.sessionFile,
@@ -175,6 +227,7 @@ export async function generateInsightsReport(
     ? createDeepTopicReports(projects, options.topics, options.locale)
     : [];
   const repository = createRepositoryInfo(mode, repoPath, workspacePath);
+  const workspaceQuality = projects.length ? summarizeWorkspaceQuality(projects) : undefined;
   const scanSummary: ScanSummary = {
     mode,
     repoPath: mode === "workspace" ? undefined : repoPath,
@@ -185,7 +238,7 @@ export async function generateInsightsReport(
   };
 
   const report: InsightReport = {
-    schemaVersion: "2.0",
+    schemaVersion: "3.0",
     id: createReportId(mode, repository, startedAt),
     sessionId,
     repository,
@@ -208,7 +261,8 @@ export async function generateInsightsReport(
       testsRunKnown: commandEvidence.testsRunKnown,
       testsRunCount: commandEvidence.testsRunCount,
       testCommands: commandEvidence.testCommands,
-      buildCommands: commandEvidence.buildCommands
+      buildCommands: commandEvidence.buildCommands,
+      workspaceQuality
     },
     recommendations: createReportRecommendations(
       deepTopics,
@@ -219,13 +273,29 @@ export async function generateInsightsReport(
     dataQuality: mergeDataQuality(dataQuality),
     scanSummary,
     projects,
-    deepTopics
+    deepTopics,
+    usageAnalytics,
+    sessionFacets,
+    agentRuleSuggestions,
+    workspaceQuality,
+    codexHistory,
+    productInsights:
+      productInsights ??
+      createDefaultProductInsights({
+        mode,
+        projects,
+        deepTopics,
+        locale: options.locale,
+        testsRunKnown: commandEvidence.testsRunKnown,
+        workspaceQuality
+      })
   };
 
   return report;
 }
 
-function inferMode(options: GenerateInsightsReportOptions): "session" | "repo" | "workspace" {
+function inferMode(options: GenerateInsightsReportOptions): "session" | "repo" | "workspace" | "codex-history" {
+  if (options.codexHistory) return "codex-history";
   if (options.workspacePath) return "workspace";
   if (options.repoPath) return "repo";
   if (options.sessionFile || options.sessionJson) return "session";
@@ -238,7 +308,11 @@ function createDeepTopicReports(
   locale: InsightReport["locale"] = "en-US"
 ): DeepTopicReport[] {
   const requested = topics?.length ? topics : ["rag"];
-  return requested.includes("rag") ? [analyzeRagProjects(projects, locale)] : [];
+  return requested.map((topic) =>
+    topic === "rag"
+      ? analyzeRagProjects(projects, locale)
+      : analyzeGenericTopicProjects(projects, topic, locale)
+  );
 }
 
 function aggregateWorkspaceCommandEvidence(
@@ -287,7 +361,7 @@ function aggregateWorkspaceCommandEvidence(
 }
 
 function createRepositoryInfo(
-  mode: "session" | "repo" | "workspace",
+  mode: "session" | "repo" | "workspace" | "codex-history",
   repoPath: string,
   workspacePath: string
 ): RepositoryInfo {
@@ -299,7 +373,7 @@ function createRepositoryInfo(
 }
 
 function createReportId(
-  mode: "session" | "repo" | "workspace",
+  mode: "session" | "repo" | "workspace" | "codex-history",
   repository: RepositoryInfo,
   timestamp: string
 ): string {
@@ -307,12 +381,17 @@ function createReportId(
 }
 
 function createNarrative(input: {
-  mode: "session" | "repo" | "workspace";
+  mode: "session" | "repo" | "workspace" | "codex-history";
   projects: ProjectProfile[];
   deepTopics: DeepTopicReport[];
   testsRunKnown: boolean;
   locale: InsightReport["locale"];
 }): string {
+  if (input.mode === "codex-history") {
+    return input.locale === "zh-CN"
+      ? "已基于 Codex JSONL session history 生成个人使用洞察。未知指标会保留为 dataQuality，不会写成 0。"
+      : "Generated personal usage insights from Codex JSONL session history. Unknown metrics are represented through dataQuality, not zeroes.";
+  }
   const rag = input.deepTopics.find((topic) => topic.topic === "rag");
   if (input.mode === "workspace" && rag) {
     if (input.locale === "zh-CN") {
@@ -336,6 +415,85 @@ function createNarrative(input: {
     return "已基于命令证据生成仓库洞察分析。";
   }
   return "Generated a repository insight report with command evidence.";
+}
+
+function summarizeHistoryCommandEvidence(
+  sessions: Array<{
+    commands: Array<{ command: string; exitCode?: number; outputSnippet?: string }>;
+  }>
+): CommandEvidenceSummary {
+  const commands = sessions.flatMap((session) =>
+    session.commands.map((command) => ({
+      command: command.command,
+      category: "other" as const,
+      source: "session" as const,
+      exitCode: command.exitCode,
+      outputSnippet: command.outputSnippet,
+      confidence: "high" as const
+    }))
+  );
+  return {
+    testsRunKnown: commands.some((command) => /test|vitest|jest|pytest|go test/.test(command.command)),
+    testsRunCount: commands.filter((command) => /test|vitest|jest|pytest|go test/.test(command.command)).length || undefined,
+    testCommands: commands.filter((command) => /test|vitest|jest|pytest|go test/.test(command.command)),
+    buildCommands: commands.filter((command) => /build|tsc|go build/.test(command.command)),
+    lintCommands: commands.filter((command) => /lint/.test(command.command)),
+    typecheckCommands: commands.filter((command) => /typecheck|tsc/.test(command.command)),
+    dockerCommands: commands.filter((command) => /docker/.test(command.command)),
+    unknownReason: commands.length ? undefined : "No command evidence was found in Codex history.",
+    dataQuality: []
+  };
+}
+
+function createDefaultProductInsights(input: {
+  mode: "session" | "repo" | "workspace" | "codex-history";
+  projects: ProjectProfile[];
+  deepTopics: DeepTopicReport[];
+  locale: InsightReport["locale"];
+  testsRunKnown?: boolean;
+  workspaceQuality?: InsightReport["workspaceQuality"];
+}): InsightReport["productInsights"] {
+  const rag = input.deepTopics.find((topic) => topic.topic === "rag");
+  if (input.locale === "zh-CN") {
+    return {
+      atAGlance: [
+        input.mode === "workspace"
+          ? `扫描 ${input.projects.length} 个项目，生成跨项目技术雷达。`
+          : "生成 Codex 洞察分析报告。"
+      ],
+      whatYouWorkOn: [
+        rag ? `RAG 相关项目 ${rag.mentionedProjects}/${rag.totalProjects} 个。` : "当前报告没有足够的 session history 来判断个人工作主题。"
+      ],
+      howYouUseCodex: [
+        input.testsRunKnown ? "报告找到了已执行测试命令证据。" : "测试执行情况未知，报告不会把 unknown 写成 0。"
+      ],
+      impressiveThings: [
+        rag?.recommendedReferenceProjects.length
+          ? `可作为参考实现的项目：${rag.recommendedReferenceProjects.join("、")}。`
+          : "尚未形成可复用参考实现判断。"
+      ],
+      whereThingsGoWrong: [
+        input.workspaceQuality?.projectsWithoutQualityEvidence
+          ? `${input.workspaceQuality.projectsWithoutQualityEvidence} 个项目缺少质量证据。`
+          : "未发现明确的质量证据缺口，或当前模式没有 workspace quality 数据。"
+      ],
+      featuresToTry: ["用 MCP/skill 固化重复的质量门禁和专题分析。"],
+      suggestedAgentsAdditions: ["验收代码改动时，先运行 find、grep、git diff、git show，再运行 test/build。"],
+      newWaysToUseCodex: ["定期运行 workspace deep report，观察技术雷达和趋势变化。"],
+      onTheHorizon: ["把高频 topic 的 partial 项目迁移到 reference implementation 或公共平台能力。"]
+    };
+  }
+  return {
+    atAGlance: [input.mode === "workspace" ? `Scanned ${input.projects.length} projects.` : "Generated a Codex insight report."],
+    whatYouWorkOn: [rag ? `${rag.mentionedProjects}/${rag.totalProjects} projects contain RAG evidence.` : "Session-history work themes are unavailable in this mode."],
+    howYouUseCodex: [input.testsRunKnown ? "Executed test-command evidence was found." : "Test execution is unknown and is not converted to zero."],
+    impressiveThings: [rag?.recommendedReferenceProjects.length ? `Reference candidates: ${rag.recommendedReferenceProjects.join(", ")}.` : "No reusable reference candidate was identified."],
+    whereThingsGoWrong: [input.workspaceQuality?.projectsWithoutQualityEvidence ? `${input.workspaceQuality.projectsWithoutQualityEvidence} projects lack quality evidence.` : "No explicit quality gap was identified for this mode."],
+    featuresToTry: ["Use MCP/skills to make repeated quality gates and topic analysis consistent."],
+    suggestedAgentsAdditions: ["Run static inspection first: find, grep, git diff, git show; then run test/build."],
+    newWaysToUseCodex: ["Run recurring workspace deep reports to track technology radar changes."],
+    onTheHorizon: ["Migrate high-frequency partial topics toward reference implementations or platform modules."]
+  };
 }
 
 function createReportRecommendations(

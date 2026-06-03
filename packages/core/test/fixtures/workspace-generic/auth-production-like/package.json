@@ -1,0 +1,7 @@
+{
+  "name": "auth-production-like",
+  "scripts": {
+    "test": "vitest run",
+    "build": "tsc -p tsconfig.json"
+  }
+}

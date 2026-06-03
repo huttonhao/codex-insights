@@ -1,0 +1,9 @@
+{"id":"old-session-1","timestamp":"2026-06-01T09:00:00.000Z","git":{"branch":"main","repository_url":"git@example.com:org/legacy-app.git"}}
+{"type":"message","role":"user","content":[{"type":"text","text":"<environment_context><cwd>/workspace/legacy-app</cwd></environment_context>"}]}
+{"type":"message","role":"user","content":[{"type":"text","text":"Fix the failing tests and explain the issue."}]}
+{"type":"function_call","name":"functions.exec_command","arguments":"{\"cmd\":\"npm test\"}"}
+{"type":"function_call_output","output":"exit code: 1\nError: expected true to be false\n2 insertions, 1 deletion"}
+{"type":"message","role":"assistant","content":[{"type":"text","text":"I found the failing assertion and updated the implementation."}]}
+{"type":"function_call","name":"functions.apply_patch","arguments":"*** Update File: src/legacy.ts\n@@\n- return false\n+ return true\n"}
+{"type":"message","role":"user","content":[{"type":"text","text":"thanks, commit it"}]}
+{"type":"function_call_output","output":"git commit abc1234 created commit"}

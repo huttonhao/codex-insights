@@ -4,6 +4,8 @@ Deep analysis is not keyword counting. Every conclusion must be tied to evidence
 
 ## Topic Analyzer
 
+The requested-topic flow returns one deep report for every requested topic. RAG uses a dedicated analyzer; other supported topics use the generic analyzer.
+
 The generic topic analyzer supports these default topics:
 
 - `rag`
@@ -32,6 +34,19 @@ Each topic can use:
 - code pattern signals
 - negative or missing signals
 - a maturity rubric
+
+For these topics, maturity is not based on one keyword:
+
+- `agent`: looks for tool routing, planner/executor loops, memory, guardrails, tests, and observability.
+- `llm-gateway`: looks for provider adapters, routing, rate limits, fallback, auth, logging, config, and tests.
+- `auth`: looks for auth middleware, sessions or JWT, RBAC/ACL, secure config, tests, and deployment controls.
+- `billing`: looks for pricing plans, usage metering, invoices, payment-provider integration, reconciliation, tests, and failure handling.
+- `observability`: looks for structured logs, metrics, tracing, dashboards, alerts, instrumentation, and incident-oriented docs.
+- `security`: looks for secret handling, validation, dependency controls, access boundaries, scanning, tests, and documented policies.
+- `i18n`: looks for message catalogs, locale routing, pluralization, formatting, extraction, tests, and fallback behavior.
+- `workflow`: looks for state machines, queues, orchestration, retries, idempotency, monitoring, and tests.
+- `evaluation`: looks for datasets, metrics, harnesses, regression checks, score tracking, and CI evidence.
+- `deployment` and `ci`: look for build, release, environment, pipeline, and verification evidence.
 
 ## Evidence Model
 
@@ -114,3 +129,35 @@ For RAG, the recommended shared architecture is:
 Source Connector -> Document Normalizer -> Chunker -> Metadata Extractor -> Embedding Adapter -> Vector Index -> Retriever -> Hybrid Search -> Reranker -> Context Packer -> Grounded Generator -> Citation Verifier -> Evaluation Harness -> Observability & Cost Dashboard -> Access Control / Tenant Isolation
 
 Shared platform modules should own ingestion, normalization, chunking, embedding, indexing, retrieval, reranking, citation checks, evaluation, observability, cost tracking, and tenant isolation. Business projects should own data-source selection, permission policy, and business prompt behavior.
+
+## Workspace Quality Matrix
+
+Workspace mode collects command and quality evidence for every discovered project. The project profile records:
+
+- test script
+- CI
+- test files
+- build config
+- executed test evidence
+- lint
+- typecheck
+- Docker
+- unknown reason
+
+This matrix feeds topic maturity. For example, a RAG project without tests or CI, evaluation, observability, security, and failure handling cannot be classified as `production_ready` even if it contains many RAG keywords.
+
+## Claude-Style Insight Sections
+
+Codex-history reports add human-readable sections derived from session metadata, facets, command evidence, tool errors, workspace scan, and deep-topic reports:
+
+- At a Glance
+- What You Work On
+- How You Use Codex
+- Impressive Things You Did
+- Where Things Go Wrong
+- Features / Workflows to Try
+- Suggested AGENTS.md Additions
+- New Ways to Use Codex
+- On the Horizon
+
+LLM facets, when enabled, are summaries with `sourceSessionIds` and confidence. They do not replace structured evidence from JSONL, git, or workspace scans.

@@ -8,11 +8,20 @@ export interface RetrievedContext {
 }
 
 export async function retrieveContext(query: string, tenantId: string): Promise<RetrievedContext[]> {
-  const records = await hybridSearch(query, tenantId);
+  const records = await retryWithBackoff(() => hybridSearch(query, tenantId));
   return records.map((record) => ({
     chunkId: record.id,
     score: 0.92,
     text: "grounded context",
     citation: `source:${record.id}`
   }));
+}
+
+async function retryWithBackoff<T>(operation: () => Promise<T>): Promise<T> {
+  try {
+    return await operation();
+  } catch {
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    return operation();
+  }
 }

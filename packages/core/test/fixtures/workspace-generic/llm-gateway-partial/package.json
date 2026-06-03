@@ -1,0 +1,6 @@
+{
+  "name": "llm-gateway-partial",
+  "scripts": {
+    "test": "vitest run"
+  }
+}

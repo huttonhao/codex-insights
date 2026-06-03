@@ -37,6 +37,13 @@ export type {
   CommandEvidence,
   CommandEvidenceSummary
 } from "./model/command.js";
+export type { AgentRuleSuggestion } from "./model/agentRuleSuggestion.js";
+export type { SessionFacet } from "./model/sessionFacet.js";
+export type { UsageAnalytics } from "./model/usageAnalytics.js";
+export type {
+  ProjectQualitySummary,
+  WorkspaceQualitySummary
+} from "./model/workspaceQuality.js";
 export type {
   DeepTopicReport,
   ProjectTopicMaturity,
@@ -50,6 +57,12 @@ export type {
   WorkspaceScanSummary
 } from "./model/project.js";
 export { collectCodexSession } from "./collectors/codexSessionCollector.js";
+export { collectCodexSessionHistory } from "./collectors/codexSessionHistoryCollector.js";
+export type {
+  CodexHistorySummary,
+  CollectCodexSessionHistoryOptions,
+  CollectCodexSessionHistoryResult
+} from "./collectors/codexSessionHistoryCollector.js";
 export type {
   CodexCommand,
   CodexFileEdit,
@@ -58,6 +71,31 @@ export type {
   CodexToolCall,
   CollectCodexSessionOptions
 } from "./collectors/codexSessionCollector.js";
+export {
+  parseCodexJsonlSessionFile,
+  type ParsedCodexJsonlSession,
+  type ParseCodexJsonlSessionOptions,
+  type ParseCodexJsonlSessionResult
+} from "./collectors/codexJsonlSessionParser.js";
+export {
+  defaultCodexSessionsDir,
+  scanCodexJsonlSessionFiles,
+  type CodexJsonlSessionScanResult,
+  type ScanCodexJsonlSessionsOptions
+} from "./collectors/codexJsonlSessionScanner.js";
+export {
+  extractSessionFacets,
+  facetCacheKey,
+  type ExtractSessionFacetsOptions,
+  type ExtractSessionFacetsResult
+} from "./collectors/sessionFacetExtractor.js";
+export {
+  buildAgentRuleSuggestions,
+  buildInsightSections,
+  buildUsageAnalytics,
+  type InsightSections
+} from "./collectors/sessionHistoryAggregator.js";
+export { redactSensitiveText } from "./collectors/redaction.js";
 export {
   classifyCommand,
   collectCommandEvidence
@@ -69,8 +107,11 @@ export { scanWorkspace } from "./collectors/workspaceScanner.js";
 export type { ScanWorkspaceOptions } from "./collectors/workspaceScanner.js";
 export { analyzeProjectTopics, defaultTopics } from "./insights/topicAnalyzer.js";
 export { analyzeRagProjects } from "./insights/ragAnalyzer.js";
+export { analyzeGenericTopicProjects } from "./insights/genericTopicAnalyzer.js";
 export {
   buildRagPlatformizationRecommendation,
+  buildGenericPlatformizationRecommendation,
+  type GenericPlatformizationInput,
   type RagPlatformizationInput,
   type RagPlatformizationRecommendation
 } from "./insights/recommendationEngine.js";

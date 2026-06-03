@@ -35,7 +35,7 @@ const report: InsightReport = {
     message: "This is the first saved report for this repository.",
     deltas: {}
   },
-  schemaVersion: "2.0",
+  schemaVersion: "3.0",
   dataQuality: [],
   scanSummary: {
     mode: "repo",
@@ -52,26 +52,26 @@ const report: InsightReport = {
 };
 
 describe("renderInsightsReport", () => {
-  it("renders an English Tailwind-styled HTML report", () => {
+  it("renders an English self-contained HTML report", () => {
     const html = renderInsightsReport(report, "en-US");
 
     expect(html).toContain("<!doctype html>");
-    expect(html).toContain("https://cdn.tailwindcss.com");
+    expect(html).toContain("<style>");
+    expect(html).not.toContain("https://cdn.tailwindcss.com");
     expect(html).toContain("Codex Insights");
-    expect(html).toContain("Summary");
+    expect(html).toContain("At a Glance");
     expect(html).toContain("Implemented the first version");
     expect(html).toContain("Projects scanned");
     expect(html).toContain(">1<");
-    expect(html).toContain("Trend");
+    expect(html).toContain("Trend Comparison");
     expect(html).toContain("first saved report");
-    expect(html).toContain("rounded-xl");
   });
 
-  it("renders a Chinese Tailwind-styled HTML report from the same model", () => {
+  it("renders a Chinese self-contained HTML report from the same model", () => {
     const html = renderInsightsReport(report, "zh-CN");
 
     expect(html).toContain("Codex 洞察分析");
-    expect(html).toContain("摘要");
+    expect(html).toContain("总览");
     expect(html).toContain("扫描项目");
     expect(html).toContain(">1<");
     expect(html).toContain("趋势");
@@ -82,7 +82,7 @@ describe("renderInsightsReport", () => {
     const markdown = renderInsightsMarkdown(report, "zh-CN");
 
     expect(markdown).toContain("# Codex 洞察分析");
-    expect(markdown).toContain("## 摘要");
+    expect(markdown).toContain("## 总览");
     expect(markdown).toContain("Projects scanned: 1");
   });
 });

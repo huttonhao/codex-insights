@@ -94,6 +94,11 @@ export function classifyTopicMaturity(input: {
   const hasBuildOrTestScript = Object.keys(input.packageScripts ?? {}).some((script) =>
     /^(test|build|lint|typecheck)$/.test(script)
   );
+  const hasConfigOrDocs = input.files.some((file) =>
+    /(^|\/)(README\.md|docs?\/|\.github\/workflows\/)|(^|\/)(tsconfig\.json|Dockerfile|docker-compose\.ya?ml|\.env\.example)$/i.test(
+      file.relativePath
+    )
+  );
   const hasDesignDoc = input.evidence.some(
     (item) => isDocFile(item.filePath) && /architecture|proposed|flow|schema|interface|design/i.test(item.snippet)
   );
@@ -106,7 +111,29 @@ export function classifyTopicMaturity(input: {
     return "mention_only";
   }
 
-  if (dimensions.size >= 12 && hasTests && hasBuildOrTestScript) {
+  const hasCoreChain = [
+    "source connectors / document ingestion",
+    "chunking strategy",
+    "embedding provider / embedding model",
+    "vector store / index schema",
+    "retrieval API"
+  ] as const;
+  const hasFullCoreChain = hasCoreChain.every((dimension) => dimensions.has(dimension));
+  const hasEvaluation = dimensions.has("evaluation dataset") || dimensions.has("retrieval metrics");
+  const hasObservability = dimensions.has("observability / tracing");
+  const hasSecurity = dimensions.has("access control / tenant isolation");
+  const hasFailureHandling = dimensions.has("failure handling / retries");
+
+  if (
+    hasFullCoreChain &&
+    hasTests &&
+    hasBuildOrTestScript &&
+    hasEvaluation &&
+    hasObservability &&
+    hasSecurity &&
+    hasConfigOrDocs &&
+    hasFailureHandling
+  ) {
     return "production_ready";
   }
 

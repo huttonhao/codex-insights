@@ -1,0 +1,6 @@
+{
+  "name": "agent-partial",
+  "scripts": {
+    "test": "vitest run"
+  }
+}

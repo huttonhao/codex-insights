@@ -41,6 +41,18 @@ export interface WorkspaceInsightsArgs extends BaseInsightsArgs {
   maxFileBytes?: number;
 }
 
+export interface CodexHistoryInsightsArgs extends BaseInsightsArgs {
+  sessionsDir?: string;
+  limit?: number;
+  minUserMessages?: number;
+  minDurationMinutes?: number;
+  llmFacets?: boolean;
+  noLlm?: boolean;
+  dryRun?: boolean;
+  redact?: boolean;
+  includeTranscriptSnippets?: boolean;
+}
+
 export interface InsightsToolResult {
   locale: SupportedLocale;
   format: McpInsightFormat;
@@ -52,6 +64,11 @@ export interface InsightsToolResult {
     markdownPath?: string;
   };
   markdownSummary?: string;
+  dryRunSummary?: {
+    scannedFiles: number;
+    parsedSessions: number;
+    qualifyingSessions: number;
+  };
 }
 
 export function listSupportedLocales(): {
@@ -120,6 +137,29 @@ export async function getWorkspaceInsights(
   });
 }
 
+export async function getCodexHistoryInsights(
+  args: CodexHistoryInsightsArgs = {}
+): Promise<InsightsToolResult> {
+  return buildResult({
+    args,
+    report: await generateInsightsReport({
+      mode: "codex-history",
+      codexHistory: true,
+      locale: resolve(args).locale,
+      sessionsDir: args.sessionsDir,
+      limit: args.limit,
+      minUserMessages: args.minUserMessages,
+      minDurationMinutes: args.minDurationMinutes,
+      llmFacets: args.llmFacets,
+      noLlm: args.noLlm,
+      dryRun: args.dryRun,
+      redact: args.redact,
+      includeTranscriptSnippets: args.includeTranscriptSnippets,
+      now: args.now
+    })
+  });
+}
+
 export async function doctor(args: { cwd?: string } = {}): Promise<DoctorResult> {
   return runDoctor({ cwd: args.cwd ?? process.cwd() });
 }
@@ -159,7 +199,14 @@ async function buildResult(input: {
           markdownPath: saved.markdownPath
         }
       : undefined,
-    markdownSummary
+    markdownSummary,
+    dryRunSummary: input.report.codexHistory?.dryRun
+      ? {
+          scannedFiles: input.report.codexHistory.scannedFiles,
+          parsedSessions: input.report.codexHistory.parsedSessions,
+          qualifyingSessions: input.report.codexHistory.qualifyingSessions
+        }
+      : undefined
   };
 }
 

@@ -35,7 +35,7 @@ describe("cli smoke", () => {
       deepTopics: Array<{ topic: string; mentionedProjects: number }>;
     };
 
-    expect(report.schemaVersion).toBe("2.0");
+    expect(report.schemaVersion).toBe("3.0");
     expect(report.scanSummary.projectsScanned).toBe(5);
     expect(report.deepTopics[0]).toMatchObject({
       topic: "rag",

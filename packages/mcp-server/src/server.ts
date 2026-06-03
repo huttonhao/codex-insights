@@ -4,6 +4,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod";
 import {
   doctor,
+  getCodexHistoryInsights,
   getRepoInsights,
   getSessionInsights,
   getWorkspaceInsights,
@@ -77,6 +78,27 @@ export function createServer(): McpServer {
       }
     },
     async (args) => textResult(await getWorkspaceInsights(args))
+  );
+
+  server.registerTool(
+    "get_codex_history_insights",
+    {
+      title: "Get Codex history insights",
+      description: "Generate usage insights from Codex JSONL rollout session history.",
+      inputSchema: {
+        ...insightInputSchema,
+        sessionsDir: z.string().optional(),
+        limit: z.number().optional(),
+        minUserMessages: z.number().optional(),
+        minDurationMinutes: z.number().optional(),
+        llmFacets: z.boolean().optional(),
+        noLlm: z.boolean().optional(),
+        dryRun: z.boolean().optional(),
+        redact: z.boolean().optional(),
+        includeTranscriptSnippets: z.boolean().optional()
+      }
+    },
+    async (args) => textResult(await getCodexHistoryInsights(args))
   );
 
   server.registerTool(

@@ -79,7 +79,7 @@ export async function loadLatestComparableReport(
 async function readReportJson(path: string): Promise<InsightReport | undefined> {
   try {
     const parsed = JSON.parse(await readFile(path, "utf8")) as InsightReport;
-    return parsed.schemaVersion === "2.0" ? parsed : undefined;
+    return parsed.schemaVersion === "3.0" ? parsed : undefined;
   } catch {
     return undefined;
   }

@@ -4,6 +4,10 @@ import { constants } from "node:fs";
 import { join } from "node:path";
 import { promisify } from "node:util";
 import { defaultReportsDir } from "./history/reportHistory.js";
+import {
+  defaultCodexSessionsDir,
+  scanCodexJsonlSessionFiles
+} from "./collectors/codexJsonlSessionScanner.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -20,6 +24,7 @@ export interface DoctorResult {
 
 export interface DoctorOptions {
   cwd?: string;
+  sessionsDir?: string;
 }
 
 export async function runDoctor(options: DoctorOptions = {}): Promise<DoctorResult> {
@@ -29,15 +34,27 @@ export async function runDoctor(options: DoctorOptions = {}): Promise<DoctorResu
   checks.push(await checkPackageManager(cwd));
   checks.push(await checkRepoRoot(cwd));
   checks.push(await checkGit(cwd));
+  checks.push(await checkCodexCli(cwd));
   checks.push(await checkReportDir(cwd));
   checks.push(await checkMcpImport());
   checks.push(await checkSkill(cwd));
   checks.push(await checkWording(cwd));
   checks.push(await checkEmptyDataPatterns(cwd));
+  checks.push(await checkSessionsDir(options.sessionsDir));
+  checks.push(await checkRolloutJsonl(options.sessionsDir));
 
   return {
     checks,
     warnings: checks.filter((check) => !check.ok).map((check) => check.message)
+  };
+}
+
+async function checkCodexCli(cwd: string): Promise<DoctorCheck> {
+  const result = await run("codex", ["--version"], cwd);
+  return {
+    name: "codex-cli",
+    ok: result.ok,
+    message: result.ok ? `codex cli: ${result.stdout.trim()}` : `codex cli: ${result.error}`
   };
 }
 
@@ -127,7 +144,11 @@ async function checkWording(cwd: string): Promise<DoctorCheck> {
     "README.md",
     join("skills", "codex-insights", "SKILL.md")
   ];
-  const disallowed = ["native " + "/insights", "原生 " + "/insights", "slash " + "command"];
+  const disallowed = [
+    "native " + "/insights",
+    "built-in " + "/insights",
+    "原生 " + "/insights"
+  ];
   const matches: string[] = [];
   for (const file of files) {
     const text = await readText(join(cwd, file));
@@ -172,6 +193,34 @@ async function checkEmptyDataPatterns(cwd: string): Promise<DoctorCheck> {
     message: matches.length
       ? `empty-data: synthetic empty report inputs found in ${matches.join(", ")}`
       : "empty-data: no synthetic empty main-path report inputs found"
+  };
+}
+
+async function checkSessionsDir(sessionsDir = defaultCodexSessionsDir()): Promise<DoctorCheck> {
+  try {
+    await access(sessionsDir, constants.R_OK);
+    return {
+      name: "sessions-dir",
+      ok: true,
+      message: `sessions dir: ${sessionsDir}`
+    };
+  } catch (error) {
+    return {
+      name: "sessions-dir",
+      ok: false,
+      message: `sessions dir: ${error instanceof Error ? error.message : String(error)}`
+    };
+  }
+}
+
+async function checkRolloutJsonl(sessionsDir = defaultCodexSessionsDir()): Promise<DoctorCheck> {
+  const scan = await scanCodexJsonlSessionFiles({ sessionsDir, limit: 1 });
+  return {
+    name: "rollout-jsonl",
+    ok: scan.files.length > 0,
+    message: scan.files.length > 0
+      ? `rollout jsonl: found ${scan.files.length} sample file`
+      : `rollout jsonl: none found in ${sessionsDir}`
   };
 }
 

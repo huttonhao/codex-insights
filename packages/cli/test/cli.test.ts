@@ -21,7 +21,8 @@ describe("codex-insights CLI", () => {
     expect(result.exitCode).toBe(0);
     expect(result.stdout).toContain("<!doctype html>");
     expect(result.stdout).toContain("Codex 洞察分析");
-    expect(result.stdout).toContain("https://cdn.tailwindcss.com");
+    expect(result.stdout).toContain("<style>");
+    expect(result.stdout).not.toContain("https://cdn.tailwindcss.com");
     expect(result.stderr).toBe("");
   });
 
@@ -46,7 +47,7 @@ describe("codex-insights CLI", () => {
       scanSummary: { mode: string; projectsScanned: number };
       deepTopics: Array<{ topic: string; mentionedProjects: number }>;
     };
-    expect(report.schemaVersion).toBe("2.0");
+    expect(report.schemaVersion).toBe("3.0");
     expect(report.scanSummary).toMatchObject({
       mode: "workspace",
       projectsScanned: 5
@@ -72,7 +73,7 @@ describe("codex-insights CLI", () => {
 
     expect(result.exitCode).toBe(0);
     expect(result.stdout).toContain("# Codex 洞察分析");
-    expect(result.stdout).toContain("## RAG 深度分析");
+    expect(result.stdout).toContain("## RAG 深挖");
     expect(result.stdout).toContain("rag-production-like");
   });
 

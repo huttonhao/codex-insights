@@ -66,6 +66,16 @@ export async function runCli(argv: string[]): Promise<CliResult> {
     .option("--deep", "Run deep topic analysis.", false)
     .option("--workspace <path>", "Scan a workspace containing multiple projects.")
     .option("--repo <path>", "Analyze one repository.")
+    .option("--codex-history", "Analyze Codex JSONL session history.", false)
+    .option("--sessions-dir <path>", "Codex sessions directory.")
+    .option("--limit <count>", "Maximum session files to parse.", parseInteger)
+    .option("--min-user-messages <count>", "Minimum user messages for a qualifying session.", parseInteger)
+    .option("--min-duration-minutes <minutes>", "Minimum duration for a qualifying session.", parseNumber)
+    .option("--dry-run", "Parse session history without LLM facet extraction.", false)
+    .option("--no-llm", "Disable LLM facet extraction.")
+    .option("--llm-facets", "Use codex exec to extract session facets.", false)
+    .option("--redact", "Redact secrets in transcript snippets.", true)
+    .option("--no-transcript-snippets", "Do not include transcript snippets.")
     .option("--session-file <path>", "Read a Codex session JSON file.")
     .option("--session-json <json>", "Read Codex session JSON from an argument.")
     .option("--topics <topics>", "Comma-separated deep topics.")
@@ -81,6 +91,16 @@ export async function runCli(argv: string[]): Promise<CliResult> {
       deep: boolean;
       workspace?: string;
       repo?: string;
+      codexHistory?: boolean;
+      sessionsDir?: string;
+      limit?: number;
+      minUserMessages?: number;
+      minDurationMinutes?: number;
+      dryRun?: boolean;
+      llm?: boolean;
+      llmFacets?: boolean;
+      redact?: boolean;
+      transcriptSnippets?: boolean;
       sessionFile?: string;
       sessionJson?: string;
       topics?: string;
@@ -97,6 +117,8 @@ export async function runCli(argv: string[]): Promise<CliResult> {
       });
       const mode = options.workspace
         ? "workspace"
+        : options.codexHistory
+          ? "codex-history"
         : options.sessionFile || options.sessionJson
           ? "session"
           : "repo";
@@ -105,6 +127,16 @@ export async function runCli(argv: string[]): Promise<CliResult> {
         locale: resolved.locale,
         repoPath: options.repo,
         workspacePath: options.workspace,
+        codexHistory: options.codexHistory,
+        sessionsDir: options.sessionsDir,
+        limit: options.limit,
+        minUserMessages: options.minUserMessages,
+        minDurationMinutes: options.minDurationMinutes,
+        dryRun: options.dryRun,
+        noLlm: options.llm === false,
+        llmFacets: options.llmFacets,
+        redact: options.redact,
+        includeTranscriptSnippets: options.transcriptSnippets !== false,
         sessionFile: options.sessionFile,
         sessionJson: options.sessionJson,
         deep: options.deep,
@@ -161,6 +193,10 @@ if (import.meta.url === `file://${process.argv[1]}`) {
 
 function parseInteger(value: string): number {
   return Number.parseInt(value, 10);
+}
+
+function parseNumber(value: string): number {
+  return Number.parseFloat(value);
 }
 
 function parseFormat(value: string): ReportFormat {
