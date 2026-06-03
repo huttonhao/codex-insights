@@ -1,0 +1,23 @@
+export const topicMessages = {
+  "topic.generic.architectureName": "{topic} reference architecture",
+  "topic.generic.finding": "{count}/{total} projects contain {topic} evidence; {implemented} contain implementation signals.",
+  "topic.generic.findingEvidence": "{topic} is evaluated using evidence, paths, dependencies, code patterns, and quality signals, not keyword counts alone.",
+  "topic.generic.duplicationRisk": "{topic} has similar implementation signals across projects, creating duplication and standardization risk.",
+  "topic.generic.architectureRationale.evidence": "{topic} should be evaluated with evidence and maturity rules, not keyword counts alone.",
+  "topic.generic.architectureRationale.platform": "Shared capabilities can become platform modules while product-specific policy stays in projects.",
+  "topic.generic.mentionRisk": "{topic} is mention-only; implementation scope is unknown.",
+  "topic.generic.designRisk": "{topic} is design-only and lacks a verifiable engineering path.",
+  "topic.generic.missingRisk": "{topic} is missing {dimension} evidence.",
+  "topic.generic.productionAction": "Use this project as a {topic} reference candidate and extract shared contracts and quality gates.",
+  "topic.generic.nextAction": "Next, add {dimension} before raising {topic} maturity.",
+  "topic.platform.no": "Only {count} project(s) show {topic}; keep it project-local until repeated evidence appears.",
+  "topic.platform.yes": "{topic} appears across {count} projects with repeated signals. Platformization should be considered.",
+  "topic.platform.modules": "shared contracts, quality gates, operational metrics",
+  "topic.platform.plan.start": "Start with the strongest reference project and document interfaces.",
+  "topic.platform.plan.extract": "Extract common interfaces after test/build evidence exists.",
+  "topic.platform.plan.migrate": "Migrate one product project at a time.",
+  "topic.platform.referenceFallback": "the strongest implementation",
+  "topic.platform.plan.reference": "Use {reference} as the {topic} reference candidate.",
+  "topic.platform.plan.boundary": "Extract shared interfaces, configuration, and quality gates, then migrate one partial project to validate boundaries.",
+  "topic.platform.plan.productPolicy": "Keep product-specific policy in projects while moving shared capability into a platform module."
+} as const;

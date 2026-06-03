@@ -16,18 +16,15 @@ describe("HTML report sections", () => {
     });
     const html = renderInsightsHtml(report, "en-US");
 
-    expect(html).toContain("At a Glance");
-    expect(html).toContain("What You Work On");
+    expect(html).toContain("0. Executive Summary");
     expect(html).toContain("How You Use Codex");
-    expect(html).toContain("Where Things Go Wrong");
-    expect(html).toContain("Suggested AGENTS.md Additions");
-    expect(html).toContain("Workspace Quality Matrix");
-    expect(html).toContain("Deep Topic Reports");
-    expect(html).toContain("Data Quality");
+    expect(html).toContain("8. RAG Deep Analysis");
+    expect(html).toContain("16. Suggested AGENTS.md Rules");
+    expect(html).toContain("18. Data Quality And Confidence");
     expect(html).not.toContain("https://cdn.tailwindcss.com");
 
     const zh = renderInsightsHtml({ ...report, locale: "zh-CN" }, "zh-CN");
-    expect(zh).toContain("总览");
-    expect(zh).toContain("工作区质量证据矩阵");
+    expect(zh).toContain("0. 执行摘要");
+    expect(zh).toContain("6. 工作区质量证据矩阵");
   });
 });

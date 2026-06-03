@@ -19,7 +19,8 @@ export interface CliResult {
   stderr: string;
 }
 
-type ReportFormat = "html" | "json" | "markdown";
+type ReportFormat = "html" | "json" | "markdown" | "all";
+type ReportScope = "full" | "repo" | "workspace" | "codex-history" | "session";
 
 export async function runCli(argv: string[]): Promise<CliResult> {
   let stdout = "";
@@ -59,8 +60,9 @@ export async function runCli(argv: string[]): Promise<CliResult> {
   program
     .command("report")
     .description("Generate an insight report.")
-    .option("--locale <locale>", "Output locale.", "auto")
-    .option("--format <format>", "Output format: html, json, or markdown.", "html")
+    .option("--locale <locale>", "Output locale.", "en-US")
+    .option("--format <format>", "Output format: html, json, markdown, or all.", "all")
+    .option("--scope <scope>", "Report scope: full, repo, workspace, codex-history, or session.")
     .option("--save", "Save report files.", true)
     .option("--no-save", "Do not save report files.")
     .option("--deep", "Run deep topic analysis.", false)
@@ -87,6 +89,7 @@ export async function runCli(argv: string[]): Promise<CliResult> {
     .action(async (options: {
       locale: string;
       format: string;
+      scope?: string;
       save: boolean;
       deep: boolean;
       workspace?: string;
@@ -111,23 +114,18 @@ export async function runCli(argv: string[]): Promise<CliResult> {
       exclude?: string;
     }) => {
       const format = parseFormat(options.format);
+      const scope = parseScope(options.scope ?? inferScope(options));
       const resolved = resolveLocale({
         requestedLocale: options.locale,
-        envLocale: process.env.LANG
+        envLocale: options.locale === "auto" ? process.env.LANG : undefined
       });
-      const mode = options.workspace
-        ? "workspace"
-        : options.codexHistory
-          ? "codex-history"
-        : options.sessionFile || options.sessionJson
-          ? "session"
-          : "repo";
+      const mode = scope;
       const report = await generateInsightsReport({
         mode,
         locale: resolved.locale,
         repoPath: options.repo,
-        workspacePath: options.workspace,
-        codexHistory: options.codexHistory,
+        workspacePath: options.workspace ?? (scope === "full" ? process.env.CODEX_INSIGHTS_WORKSPACE : undefined),
+        codexHistory: options.codexHistory || scope === "codex-history" || scope === "full",
         sessionsDir: options.sessionsDir,
         limit: options.limit,
         minUserMessages: options.minUserMessages,
@@ -139,7 +137,7 @@ export async function runCli(argv: string[]): Promise<CliResult> {
         includeTranscriptSnippets: options.transcriptSnippets !== false,
         sessionFile: options.sessionFile,
         sessionJson: options.sessionJson,
-        deep: options.deep,
+        deep: options.deep || scope === "full" || scope === "workspace",
         topics: splitCsv(options.topics),
         maxProjects: options.maxProjects,
         maxFilesPerProject: options.maxFilesPerProject,
@@ -152,12 +150,37 @@ export async function runCli(argv: string[]): Promise<CliResult> {
         report.trend = compareReportTrends(previous, report);
       }
 
-      const html = format === "html" || options.save ? renderInsightsHtml(report, resolved.locale) : undefined;
+      const html = format === "html" || format === "all" || options.save
+        ? renderInsightsHtml(report, resolved.locale)
+        : undefined;
       const markdown =
-        format === "markdown" ? renderInsightsMarkdown(report, resolved.locale) : undefined;
+        format === "markdown" || format === "all" || options.save
+          ? renderInsightsMarkdown(report, resolved.locale)
+          : undefined;
 
       if (options.save) {
-        await saveReportSnapshot({ report, html, markdown });
+        const saved = await saveReportSnapshot({
+          report,
+          html: format === "json" ? undefined : html,
+          markdown: format === "json" || format === "html" ? undefined : markdown
+        });
+        stdout += [
+          `Codex Insights ${scope} report generated.`,
+          saved.htmlPath ? `HTML: ${saved.htmlPath}` : undefined,
+          saved.markdownPath ? `Markdown: ${saved.markdownPath}` : undefined,
+          `JSON: ${saved.jsonPath}`,
+          saved.latestHtmlPath ? `Latest HTML: ${saved.latestHtmlPath}` : undefined,
+          saved.latestMarkdownPath ? `Latest Markdown: ${saved.latestMarkdownPath}` : undefined,
+          `Latest JSON: ${saved.latestJsonPath}`,
+          `Mode: ${report.scanSummary.mode}`,
+          `Locale: ${resolved.locale}`,
+          `Projects scanned: ${report.scanSummary.projectsScanned}`,
+          `Sessions parsed: ${report.codexHistory?.parsedSessions ?? 0}`,
+          `Deep topics: ${report.deepTopics.map((topic) => topic.topic).join(", ") || "none"}`,
+          `Warnings: ${report.dataQuality.length + (report.anomalies?.length ?? 0)}`
+        ].filter(Boolean).join("\n");
+        stdout += "\n";
+        return;
       }
 
       if (format === "json") {
@@ -166,6 +189,19 @@ export async function runCli(argv: string[]): Promise<CliResult> {
       }
       if (format === "markdown") {
         stdout += markdown ?? renderInsightsMarkdown(report, resolved.locale);
+        return;
+      }
+      if (format === "all") {
+        stdout += [
+          `Codex Insights ${scope} report generated.`,
+          `Mode: ${report.scanSummary.mode}`,
+          `Locale: ${resolved.locale}`,
+          `Projects scanned: ${report.scanSummary.projectsScanned}`,
+          `Sessions parsed: ${report.codexHistory?.parsedSessions ?? 0}`,
+          `Deep topics: ${report.deepTopics.map((topic) => topic.topic).join(", ") || "none"}`,
+          `Warnings: ${report.dataQuality.length + (report.anomalies?.length ?? 0)}`
+        ].join("\n");
+        stdout += "\n";
         return;
       }
       stdout += html ?? renderInsightsHtml(report, resolved.locale);
@@ -200,10 +236,37 @@ function parseNumber(value: string): number {
 }
 
 function parseFormat(value: string): ReportFormat {
-  if (value === "html" || value === "json" || value === "markdown") {
+  if (value === "html" || value === "json" || value === "markdown" || value === "all") {
     return value;
   }
   throw new Error(`Unsupported format: ${value}`);
+}
+
+function parseScope(value: string): ReportScope {
+  if (
+    value === "full" ||
+    value === "repo" ||
+    value === "workspace" ||
+    value === "codex-history" ||
+    value === "session"
+  ) {
+    return value;
+  }
+  throw new Error(`Unsupported scope: ${value}`);
+}
+
+function inferScope(options: {
+  workspace?: string;
+  repo?: string;
+  codexHistory?: boolean;
+  sessionFile?: string;
+  sessionJson?: string;
+}): ReportScope {
+  if (options.sessionFile || options.sessionJson) return "session";
+  if (options.repo) return "repo";
+  if (options.codexHistory) return "codex-history";
+  if (options.workspace) return "workspace";
+  return "full";
 }
 
 function splitCsv(value?: string): string[] | undefined {

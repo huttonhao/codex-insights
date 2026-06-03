@@ -1,7 +1,9 @@
 import type { SupportedLocale } from "../i18n/localeResolver.js";
 import type { AgentRuleSuggestion } from "./agentRuleSuggestion.js";
+import type { AnomalyIssue } from "./anomaly.js";
 import type { CommandEvidence } from "./command.js";
 import type { DataQuality } from "./dataQuality.js";
+import type { FullReportNarrative } from "./narrative.js";
 import type { SessionFacet } from "./sessionFacet.js";
 import type { DeepTopicReport } from "./topic.js";
 import type { ProjectProfile } from "./project.js";
@@ -30,7 +32,7 @@ export interface InsightMetrics {
 }
 
 export interface ScanSummary {
-  mode: "session" | "repo" | "workspace" | "codex-history";
+  mode: "session" | "repo" | "workspace" | "codex-history" | "full";
   repoPath?: string;
   workspacePath?: string;
   projectsScanned: number;
@@ -101,10 +103,12 @@ export interface InsightReport {
   workspaceQuality?: WorkspaceQualitySummary;
   codexHistory?: CodexHistoryReportSummary;
   productInsights?: ProductInsightSections;
+  anomalies?: AnomalyIssue[];
+  fullNarrative?: FullReportNarrative;
 }
 
 export interface GenerateInsightsReportOptions {
-  mode?: "session" | "repo" | "workspace" | "codex-history";
+  mode?: "session" | "repo" | "workspace" | "codex-history" | "full";
   locale: SupportedLocale;
   repoPath?: string;
   workspacePath?: string;

@@ -63,8 +63,8 @@ describe("cli codex history", () => {
       { cwd: repoRoot, maxBuffer: 1024 * 1024 * 8 }
     );
 
-    expect(stdout).toContain("Codex 洞察分析");
-    expect(stdout).toContain("## 总览");
-    expect(stdout).toContain("## 建议加入 AGENTS.md 的规则");
+    expect(stdout).toContain("Codex Insights 全量洞察报告");
+    expect(stdout).toContain("## 0. 执行摘要");
+    expect(stdout).toContain("## 16. 建议加入 AGENTS.md 的规则");
   });
 });

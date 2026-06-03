@@ -1,4 +1,4 @@
-import { basename, resolve } from "node:path";
+import { basename, dirname, resolve } from "node:path";
 import { collectCodexSession } from "../collectors/codexSessionCollector.js";
 import { collectCodexSessionHistory } from "../collectors/codexSessionHistoryCollector.js";
 import { collectCommandEvidence } from "../collectors/commandEvidenceCollector.js";
@@ -7,6 +7,7 @@ import { scanWorkspace } from "../collectors/workspaceScanner.js";
 import type { CommandEvidenceSummary } from "../model/command.js";
 import type { DataQuality } from "../model/dataQuality.js";
 import { createDataQualityRecord, mergeDataQuality } from "../model/dataQuality.js";
+import { isLocale, tx } from "../i18n/index.js";
 import type {
   GenerateInsightsReportOptions,
   InsightReport,
@@ -15,13 +16,22 @@ import type {
 } from "../model/report.js";
 import type { DeepTopicReport } from "../model/topic.js";
 import type { ProjectProfile } from "../model/project.js";
+import { analyzeAgentProjects } from "./agentAnalyzer.js";
+import { detectReportAnomalies } from "./anomalyDetector.js";
 import { analyzeGenericTopicProjects } from "./genericTopicAnalyzer.js";
+import { analyzeLlmGatewayProjects } from "./llmGatewayAnalyzer.js";
+import { analyzeObservabilityProjects } from "./observabilityAnalyzer.js";
+import { analyzeQualityProjects } from "./qualityAnalyzer.js";
 import { analyzeRagProjects } from "./ragAnalyzer.js";
+import { buildFullReportNarrative, fullTopicOrder } from "./reportNarrativeBuilder.js";
+import { analyzeSecurityProjects } from "./securityAnalyzer.js";
 import { createBaselineTrend } from "./trends.js";
 import {
   summarizeProjectQuality,
   summarizeWorkspaceQuality
 } from "./workspaceQuality.js";
+
+export const defaultFullTopics = fullTopicOrder;
 
 export interface SessionInsightInput {
   sessionId: string;
@@ -33,6 +43,8 @@ export interface SessionInsightInput {
   testsRun?: number;
   warnings: string[];
 }
+
+type ReportMode = "session" | "repo" | "workspace" | "codex-history" | "full";
 
 /**
  * @deprecated Use generateInsightsReport() with session, repo, workspace, or codex-history mode.
@@ -104,7 +116,12 @@ export async function generateInsightsReport(
   const startedAt = options.now ?? new Date().toISOString();
   const mode = options.mode ?? inferMode(options);
   const repoPath = resolve(options.repoPath ?? process.cwd());
-  const workspacePath = resolve(options.workspacePath ?? repoPath);
+  const workspacePath = resolve(options.workspacePath ?? defaultWorkspacePath(repoPath));
+  const requestedTopics = options.topics?.length
+    ? options.topics
+    : mode === "full"
+      ? defaultFullTopics
+      : undefined;
   const dataQuality: DataQuality[] = [];
   let projects: ProjectProfile[] = [];
   let scanNumbers = {
@@ -124,29 +141,59 @@ export async function generateInsightsReport(
   let codexHistory: InsightReport["codexHistory"];
   let productInsights: InsightReport["productInsights"];
 
-  if (mode === "workspace") {
+  if (mode === "full") {
+    const history = await collectCodexSessionHistory({
+      sessionsDir: options.sessionsDir,
+      limit: options.limit,
+      minUserMessages: options.minUserMessages,
+      minDurationMinutes: options.minDurationMinutes,
+      dryRun: options.dryRun,
+      noLlm: options.noLlm,
+      llmFacets: options.llmFacets,
+      redact: options.redact,
+      includeTranscriptSnippets: options.includeTranscriptSnippets,
+      locale: options.locale
+    });
+    dataQuality.push(...history.dataQuality);
+    usageAnalytics = history.usageAnalytics;
+    sessionFacets = history.sessionFacets;
+    agentRuleSuggestions = history.agentRuleSuggestions;
+    codexHistory = history.codexHistory;
+    productInsights = history.insightSections;
+    sessionId = history.qualifyingSessions[0]?.sessionId;
+    toolCalls = history.usageAnalytics.toolCalls ?? 0;
+    filesTouched = history.usageAnalytics.filesModified ?? 0;
+    warnings = history.qualifyingSessions.reduce((count, session) => count + session.warnings.length, 0);
+
     const scan = await scanWorkspace({
       workspacePath,
-      topics: options.topics,
+      topics: requestedTopics,
       maxProjects: options.maxProjects,
       maxFilesPerProject: options.maxFilesPerProject,
       maxFileBytes: options.maxFileBytes,
       include: options.include,
       exclude: options.exclude
     });
-    const projectCommandEvidence = await Promise.all(
-      scan.projects.map((project) =>
-        collectCommandEvidence({
-          repoPath: project.path,
-          suppressUnknownDataQuality: true
-        })
-      )
-    );
-    projects = scan.projects.map((project, index) => ({
-      ...project,
-      commandEvidence: projectCommandEvidence[index],
-      qualitySummary: summarizeProjectQuality(projectCommandEvidence[index] as CommandEvidenceSummary)
-    }));
+    const projectCommandEvidence = await collectProjectCommandEvidence(scan.projects);
+    projects = attachProjectQuality(scan.projects, projectCommandEvidence);
+    scanNumbers = scan.summary;
+    dataQuality.push(...scan.dataQuality);
+    commandEvidence = aggregateWorkspaceCommandEvidence([
+      ...projectCommandEvidence,
+      summarizeHistoryCommandEvidence(history.qualifyingSessions)
+    ]);
+  } else if (mode === "workspace") {
+    const scan = await scanWorkspace({
+      workspacePath,
+      topics: requestedTopics,
+      maxProjects: options.maxProjects,
+      maxFilesPerProject: options.maxFilesPerProject,
+      maxFileBytes: options.maxFileBytes,
+      include: options.include,
+      exclude: options.exclude
+    });
+    const projectCommandEvidence = await collectProjectCommandEvidence(scan.projects);
+    projects = attachProjectQuality(scan.projects, projectCommandEvidence);
     scanNumbers = scan.summary;
     dataQuality.push(...scan.dataQuality);
     commandEvidence = aggregateWorkspaceCommandEvidence(projectCommandEvidence);
@@ -155,7 +202,7 @@ export async function generateInsightsReport(
     dataQuality.push(...git.dataQuality);
     const scan = await scanWorkspace({
       workspacePath: repoPath,
-      topics: options.topics,
+      topics: requestedTopics,
       maxProjects: 1,
       maxFilesPerProject: options.maxFilesPerProject,
       maxFileBytes: options.maxFileBytes,
@@ -223,8 +270,8 @@ export async function generateInsightsReport(
 
   dataQuality.push(...commandEvidence.dataQuality);
   const completedAt = options.now ?? new Date().toISOString();
-  const deepTopics = options.deep
-    ? createDeepTopicReports(projects, options.topics, options.locale)
+  const deepTopics = options.deep || mode === "full"
+    ? createDeepTopicReports(projects, requestedTopics, options.locale)
     : [];
   const repository = createRepositoryInfo(mode, repoPath, workspacePath);
   const workspaceQuality = projects.length ? summarizeWorkspaceQuality(projects) : undefined;
@@ -245,7 +292,9 @@ export async function generateInsightsReport(
     generatedAt: completedAt,
     locale: options.locale,
     summary: {
-      title: mode === "workspace" ? "Workspace deep analysis" : "Codex insight report",
+      title: mode === "full"
+        ? (isLocale(options.locale, "zh-CN") ? "Codex Insights 全量洞察报告" : "Codex Insights Full Report")
+        : mode === "workspace" ? "Workspace deep analysis" : "Codex insight report",
       narrative: createNarrative({
         mode,
         projects,
@@ -291,15 +340,18 @@ export async function generateInsightsReport(
       })
   };
 
+  report.anomalies = detectReportAnomalies(report);
+  report.fullNarrative = buildFullReportNarrative(report, report.anomalies);
+
   return report;
 }
 
-function inferMode(options: GenerateInsightsReportOptions): "session" | "repo" | "workspace" | "codex-history" {
+function inferMode(options: GenerateInsightsReportOptions): ReportMode {
   if (options.codexHistory) return "codex-history";
   if (options.workspacePath) return "workspace";
   if (options.repoPath) return "repo";
   if (options.sessionFile || options.sessionJson) return "session";
-  return "repo";
+  return "full";
 }
 
 function createDeepTopicReports(
@@ -308,11 +360,39 @@ function createDeepTopicReports(
   locale: InsightReport["locale"] = "en-US"
 ): DeepTopicReport[] {
   const requested = topics?.length ? topics : ["rag"];
-  return requested.map((topic) =>
-    topic === "rag"
-      ? analyzeRagProjects(projects, locale)
-      : analyzeGenericTopicProjects(projects, topic, locale)
+  return requested.map((topic) => {
+    if (topic === "rag") return analyzeRagProjects(projects, locale);
+    if (topic === "agent") return analyzeAgentProjects(projects, locale);
+    if (topic === "llm-gateway") return analyzeLlmGatewayProjects(projects, locale);
+    if (topic === "quality" || topic === "testing") return analyzeQualityProjects(projects, locale);
+    if (topic === "observability") return analyzeObservabilityProjects(projects, locale);
+    if (topic === "security") return analyzeSecurityProjects(projects, locale);
+    return analyzeGenericTopicProjects(projects, topic, locale);
+  });
+}
+
+async function collectProjectCommandEvidence(
+  projects: ProjectProfile[]
+): Promise<CommandEvidenceSummary[]> {
+  return Promise.all(
+    projects.map((project) =>
+      collectCommandEvidence({
+        repoPath: project.path,
+        suppressUnknownDataQuality: true
+      })
+    )
   );
+}
+
+function attachProjectQuality(
+  projects: ProjectProfile[],
+  summaries: CommandEvidenceSummary[]
+): ProjectProfile[] {
+  return projects.map((project, index) => ({
+    ...project,
+    commandEvidence: summaries[index],
+    qualitySummary: summarizeProjectQuality(summaries[index] as CommandEvidenceSummary)
+  }));
 }
 
 function aggregateWorkspaceCommandEvidence(
@@ -361,11 +441,11 @@ function aggregateWorkspaceCommandEvidence(
 }
 
 function createRepositoryInfo(
-  mode: "session" | "repo" | "workspace" | "codex-history",
+  mode: ReportMode,
   repoPath: string,
   workspacePath: string
 ): RepositoryInfo {
-  const root = mode === "workspace" ? workspacePath : repoPath;
+  const root = mode === "workspace" || mode === "full" ? workspacePath : repoPath;
   return {
     root,
     name: basename(root)
@@ -373,7 +453,7 @@ function createRepositoryInfo(
 }
 
 function createReportId(
-  mode: "session" | "repo" | "workspace" | "codex-history",
+  mode: ReportMode,
   repository: RepositoryInfo,
   timestamp: string
 ): string {
@@ -381,37 +461,37 @@ function createReportId(
 }
 
 function createNarrative(input: {
-  mode: "session" | "repo" | "workspace" | "codex-history";
+  mode: ReportMode;
   projects: ProjectProfile[];
   deepTopics: DeepTopicReport[];
   testsRunKnown: boolean;
   locale: InsightReport["locale"];
 }): string {
   if (input.mode === "codex-history") {
-    return input.locale === "zh-CN"
+    return isLocale(input.locale, "zh-CN")
       ? "已基于 Codex JSONL session history 生成个人使用洞察。未知指标会保留为 dataQuality，不会写成 0。"
       : "Generated personal usage insights from Codex JSONL session history. Unknown metrics are represented through dataQuality, not zeroes.";
   }
   const rag = input.deepTopics.find((topic) => topic.topic === "rag");
   if (input.mode === "workspace" && rag) {
-    if (input.locale === "zh-CN") {
+    if (isLocale(input.locale, "zh-CN")) {
       return `在扫描的 ${input.projects.length} 个项目中，有 ${rag.mentionedProjects} 个项目出现 RAG 相关证据。当前重点不是“有没有 RAG”，而是多个项目分别处在提及、设计、原型、局部实现和接近生产的不同成熟度，后续需要收敛为可复用的平台能力。`;
     }
     return `Scanned ${input.projects.length} projects. ${rag.mentionedProjects} projects contain RAG evidence, with maturity ranging from mention-only to production-ready.`;
   }
   if (input.mode === "workspace") {
-    if (input.locale === "zh-CN") {
+    if (isLocale(input.locale, "zh-CN")) {
       return `扫描了 ${input.projects.length} 个项目，并生成 workspace 级洞察分析。`;
     }
     return `Scanned ${input.projects.length} projects and generated a workspace insight report.`;
   }
   if (!input.testsRunKnown) {
-    if (input.locale === "zh-CN") {
+    if (isLocale(input.locale, "zh-CN")) {
       return "已生成仓库洞察分析，但没有找到可证明测试执行情况的命令证据。";
     }
     return "Generated a repository insight report. Test execution evidence is unknown.";
   }
-  if (input.locale === "zh-CN") {
+  if (isLocale(input.locale, "zh-CN")) {
     return "已基于命令证据生成仓库洞察分析。";
   }
   return "Generated a repository insight report with command evidence.";
@@ -446,7 +526,7 @@ function summarizeHistoryCommandEvidence(
 }
 
 function createDefaultProductInsights(input: {
-  mode: "session" | "repo" | "workspace" | "codex-history";
+  mode: ReportMode;
   projects: ProjectProfile[];
   deepTopics: DeepTopicReport[];
   locale: InsightReport["locale"];
@@ -454,7 +534,7 @@ function createDefaultProductInsights(input: {
   workspaceQuality?: InsightReport["workspaceQuality"];
 }): InsightReport["productInsights"] {
   const rag = input.deepTopics.find((topic) => topic.topic === "rag");
-  if (input.locale === "zh-CN") {
+  if (isLocale(input.locale, "zh-CN")) {
     return {
       atAGlance: [
         input.mode === "workspace"
@@ -496,6 +576,10 @@ function createDefaultProductInsights(input: {
   };
 }
 
+function defaultWorkspacePath(repoPath: string): string {
+  return dirname(repoPath);
+}
+
 function createReportRecommendations(
   deepTopics: DeepTopicReport[],
   unknownReason?: string,
@@ -505,21 +589,21 @@ function createReportRecommendations(
   const rag = deepTopics.find((topic) => topic.topic === "rag");
   if (rag?.platformizationRecommendation.shouldPlatformize) {
     recommendations.push(
-      locale === "zh-CN"
+      isLocale(locale, "zh-CN")
         ? `建议把 RAG 抽成平台能力：业务项目保留数据源、权限模型和业务 prompt；公共平台负责文档接入、切片、embedding、索引、召回、重排、引用校验、评估和观测。当前有 ${rag.mentionedProjects} 个项目出现 RAG 证据，继续分散实现会增加重复建设和评估口径不一致的风险。`
         : rag.platformizationRecommendation.reason
     );
   }
   if (unknownReason) {
     recommendations.push(
-      locale === "zh-CN"
+      isLocale(locale, "zh-CN")
         ? "没有找到已执行的测试命令证据，因此报告只能标记测试状态未知，不能把它当作未执行或已执行。"
         : unknownReason
     );
   }
   if (recommendations.length === 0) {
     recommendations.push(
-      locale === "zh-CN"
+      isLocale(locale, "zh-CN")
         ? "继续保存基于证据的报告，以便后续生成更可靠的趋势比较。"
         : "Continue collecting evidence-backed reports to improve trend quality."
     );

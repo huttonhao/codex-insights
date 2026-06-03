@@ -1,6 +1,6 @@
 import type { SupportedLocale } from "./localeResolver.js";
-import { enUS } from "./locales/en-US.js";
-import { zhCN } from "./locales/zh-CN.js";
+import { enUS } from "./locales/en-US/index.js";
+import { zhCN } from "./locales/zh-CN/index.js";
 
 export type MetricMessageKey =
   | "projectsScanned"

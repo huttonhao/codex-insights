@@ -20,7 +20,7 @@ describe("MCP Codex history insights", () => {
     expect(result.report.schemaVersion).toBe("3.0");
     expect(result.report.codexHistory?.scannedFiles).toBeGreaterThanOrEqual(4);
     expect(result.dataQuality.length).toBeGreaterThan(0);
-    expect(result.markdownSummary).toContain("## 总览");
+    expect(result.markdownSummary).toContain("## 0. 执行摘要");
     expect(result.dryRunSummary?.scannedFiles).toBeGreaterThanOrEqual(4);
   });
 });

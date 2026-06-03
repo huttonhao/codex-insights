@@ -13,6 +13,9 @@ export interface SavedReportSnapshot {
   jsonPath: string;
   htmlPath?: string;
   markdownPath?: string;
+  latestJsonPath: string;
+  latestHtmlPath?: string;
+  latestMarkdownPath?: string;
 }
 
 export const defaultReportsDir = ".codex-insights/reports";
@@ -21,12 +24,7 @@ export function createReportFileBase(report: InsightReport): string {
   const timestamp = report.generatedAt
     .replace(/\.\d{3}Z$/, "")
     .replace(/:/g, "-");
-  const scope =
-    report.scanSummary.workspacePath ??
-    report.scanSummary.repoPath ??
-    report.repository.root ??
-    report.id;
-  return `${timestamp}_${sanitizeFilePart(report.scanSummary.mode)}_${sanitizeFilePart(scope)}_${report.locale}`;
+  return `${timestamp}_${sanitizeFilePart(report.scanSummary.mode)}_${report.locale}`;
 }
 
 export async function saveReportSnapshot(
@@ -39,16 +37,34 @@ export async function saveReportSnapshot(
   const jsonPath = join(reportsDir, `${fileBase}.json`);
   const htmlPath = input.html ? join(reportsDir, `${fileBase}.html`) : undefined;
   const markdownPath = input.markdown ? join(reportsDir, `${fileBase}.md`) : undefined;
+  const latestJsonPath = join(reportsDir, `latest.${input.report.locale}.json`);
+  const latestHtmlPath = input.html ? join(reportsDir, `latest.${input.report.locale}.html`) : undefined;
+  const latestMarkdownPath = input.markdown ? join(reportsDir, `latest.${input.report.locale}.md`) : undefined;
 
-  await writeFile(jsonPath, `${JSON.stringify(input.report, null, 2)}\n`, "utf8");
+  const json = `${JSON.stringify(input.report, null, 2)}\n`;
+  await writeFile(jsonPath, json, "utf8");
+  await writeFile(latestJsonPath, json, "utf8");
   if (input.html && htmlPath) {
     await writeFile(htmlPath, input.html, "utf8");
+    if (latestHtmlPath) {
+      await writeFile(latestHtmlPath, input.html, "utf8");
+    }
   }
   if (input.markdown && markdownPath) {
     await writeFile(markdownPath, input.markdown, "utf8");
+    if (latestMarkdownPath) {
+      await writeFile(latestMarkdownPath, input.markdown, "utf8");
+    }
   }
 
-  return { jsonPath, htmlPath, markdownPath };
+  return {
+    jsonPath,
+    htmlPath,
+    markdownPath,
+    latestJsonPath,
+    latestHtmlPath,
+    latestMarkdownPath
+  };
 }
 
 export async function loadLatestComparableReport(

@@ -32,7 +32,7 @@ describe("MCP tool handlers", () => {
     expect(result.locale).toBe("zh-CN");
     expect(result.format).toBe("markdown");
     expect(result.report.schemaVersion).toBe("3.0");
-    expect(result.markdownSummary).toContain("# Codex 洞察分析");
+    expect(result.markdownSummary).toContain("# Codex Insights 全量洞察报告");
     expect(result.saved).toBeUndefined();
   });
 
@@ -48,7 +48,7 @@ describe("MCP tool handlers", () => {
 
     expect(result.report.scanSummary.projectsScanned).toBe(5);
     expect(result.report.deepTopics[0]?.topic).toBe("rag");
-    expect(result.markdownSummary).toContain("RAG 深挖");
+    expect(result.markdownSummary).toContain("RAG 深度分析");
     expect(result.dataQuality).toEqual(result.report.dataQuality);
   });
 

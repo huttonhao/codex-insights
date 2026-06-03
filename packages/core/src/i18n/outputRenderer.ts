@@ -2,6 +2,9 @@ import type { InsightReport } from "../insights/reportModel.js";
 import type { DeepTopicReport } from "../model/topic.js";
 import type { SupportedLocale } from "./localeResolver.js";
 import { getMessageCatalog } from "./messageCatalog.js";
+import { createI18n } from "./locale.js";
+import { formatBoolean, formatMaturity, formatPriority } from "./format.js";
+import { t } from "./t.js";
 
 export function renderInsightsReport(
   report: InsightReport,
@@ -14,6 +17,9 @@ export function renderInsightsHtml(
   report: InsightReport,
   locale: SupportedLocale = report.locale
 ): string {
+  if (report.fullNarrative) {
+    return renderFullInsightsHtml(report, locale);
+  }
   const catalog = getMessageCatalog(locale);
   const labels = sectionLabels(locale);
   const rag = report.deepTopics.find((topic) => topic.topic === "rag");
@@ -93,6 +99,9 @@ export function renderInsightsMarkdown(
   report: InsightReport,
   locale: SupportedLocale = report.locale
 ): string {
+  if (report.fullNarrative) {
+    return renderFullInsightsMarkdown(report, locale);
+  }
   const labels = sectionLabels(locale);
   const lines: string[] = [
     `# ${locale === "zh-CN" ? "Codex 洞察分析" : "Codex Insights"}`,
@@ -124,6 +133,451 @@ export function renderInsightsMarkdown(
     ...markdownTrend(report, locale)
   ];
   return `${lines.join("\n")}\n`;
+}
+
+function renderFullInsightsMarkdown(
+  report: InsightReport,
+  locale: SupportedLocale
+): string {
+  const ctx = createI18n(locale);
+  const narrative = report.fullNarrative;
+  if (!narrative) {
+    return "";
+  }
+  const lines: string[] = [
+    `# ${t(ctx, "report.title.full")}`,
+    "",
+    `- ${t(ctx, "report.schema")}: ${report.schemaVersion}`,
+    `- ${t(ctx, "report.mode")}: ${report.scanSummary.mode}`,
+    `- ${t(ctx, "report.generated", { time: report.generatedAt })}`,
+    "",
+    `## ${t(ctx, "report.section.executiveSummary")}`,
+    "",
+    ...markdownInsightTable(narrative.executiveSummary, ctx),
+    "",
+    `## ${t(ctx, "report.section.coverage")}`,
+    "",
+    `- ${narrative.coverage.sessionCount}`,
+    `- ${narrative.coverage.projectCount}`,
+    `- ${narrative.coverage.fileCount}`,
+    `- ${narrative.coverage.topicCount}`,
+    `- ${t(ctx, "report.coverage.confidence", { confidence: narrative.coverage.confidence })}`,
+    `- ${narrative.coverage.confidenceReason}`,
+    "",
+    ...markdownListBlock(narrative.coverage.dataGaps, "Data gaps"),
+    "",
+    `## ${t(ctx, "report.section.highRisks")}`,
+    "",
+    ...markdownInsightTable(
+      narrative.executiveSummary
+        .filter((item) => item.priority === "P0" || item.priority === "P1")
+        .concat(narrative.anomalies.map((item) => ({
+          conclusion: item.title,
+          evidence: [`${item.metric}=${item.value}`],
+          explanation: item.explanation,
+          risk: item.impact,
+          nextAction: item.nextAction,
+          priority: item.severity === "critical" ? "P0" as const : "P1" as const,
+          projects: [],
+          dataQualityNote: item.metric
+        }))),
+      ctx
+    ),
+    "",
+    `## ${t(ctx, "report.section.recentWork")}`,
+    "",
+    ...markdownInsightTable(narrative.recentWork, ctx),
+    "",
+    `## ${t(ctx, "report.section.codexUsage")}`,
+    "",
+    ...markdownInsightTable(narrative.codexUsage, ctx),
+    "",
+    `## ${t(ctx, "report.section.projectRadar")}`,
+    "",
+    ...markdownProjectRadar(narrative.projectRadar),
+    "",
+    `## ${t(ctx, "report.section.workspaceQuality")}`,
+    "",
+    ...markdownInsightTable(narrative.workspaceQuality.findings, ctx),
+    "",
+    ...markdownListBlock(narrative.workspaceQuality.priorityOrder, "Priority order"),
+    "",
+    ...markdownListBlock(narrative.workspaceQuality.commandSuggestions, "Suggested commands"),
+    "",
+    ...markdownWorkspaceQuality(report, locale),
+    "",
+    `## ${t(ctx, "report.section.topicOverview")}`,
+    "",
+    ...markdownTopicOverview(narrative.topicOverview, ctx),
+    "",
+    `## ${t(ctx, "report.section.ragDeepDive")}`,
+    "",
+    ...markdownRagFull(narrative.rag, ctx),
+    "",
+    `## ${t(ctx, "report.section.agentDeepDive")}`,
+    "",
+    ...markdownTopicDimensionTable(narrative.agentLlmGateway.agent),
+    "",
+    `## ${t(ctx, "report.section.llmGatewayDeepDive")}`,
+    "",
+    ...markdownTopicDimensionTable(narrative.agentLlmGateway.llmGateway),
+    "",
+    `## ${t(ctx, "report.section.qualityEngineering")}`,
+    "",
+    ...markdownTopicFocused(report, ["quality", "testing"], ctx),
+    "",
+    `## ${t(ctx, "report.section.observability")}`,
+    "",
+    ...markdownTopicFocused(report, ["observability"], ctx),
+    "",
+    `## ${t(ctx, "report.section.security")}`,
+    "",
+    ...markdownTopicFocused(report, ["security"], ctx),
+    "",
+    `## ${t(ctx, "report.section.problemPatterns")}`,
+    "",
+    ...markdownProblemTable(narrative.problems),
+    "",
+    `## ${t(ctx, "report.section.strengths")}`,
+    "",
+    ...markdownInsightTable(narrative.strengths, ctx),
+    "",
+    `## ${t(ctx, "report.section.agentRules")}`,
+    "",
+    ...markdownAgentRulesFull(narrative.agentRules),
+    "",
+    `## ${t(ctx, "report.section.nextCodexPrompts")}`,
+    "",
+    ...markdownNextPrompts(narrative.nextPrompts, ctx),
+    "",
+    `## ${t(ctx, "report.section.dataQuality")}`,
+    "",
+    `- ${t(ctx, "report.coverage.confidence", { confidence: narrative.dataQuality.confidence })}`,
+    ...markdownListBlock(narrative.dataQuality.sources, "Sources"),
+    ...markdownListBlock(narrative.dataQuality.unknowns, "Unknowns"),
+    ...markdownListBlock(
+      narrative.dataQuality.suspiciousMetrics.length
+        ? narrative.dataQuality.suspiciousMetrics
+        : [t(ctx, "dataQuality.caveat.noAnomaly")],
+      "Suspicious metrics"
+    ),
+    ...markdownListBlock(narrative.dataQuality.caveats, "Caveats"),
+    "",
+    `## ${t(ctx, "report.section.trend")}`,
+    "",
+    ...markdownList(narrative.trend, t(ctx, "report.trend.baseline")),
+    "",
+    `## ${t(ctx, "report.section.evidenceIndex")}`,
+    "",
+    ...markdownEvidenceIndex(narrative.evidenceIndex)
+  ];
+  return `${lines.join("\n")}\n`;
+}
+
+function renderFullInsightsHtml(report: InsightReport, locale: SupportedLocale): string {
+  const markdown = renderFullInsightsMarkdown(report, locale);
+  const body = markdownToHtml(markdown);
+  return `<!doctype html>
+<html lang="${locale}">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>${escapeHtml(report.fullNarrative?.title ?? report.summary.title)}</title>
+    <style>
+      :root { color-scheme: light; --bg:#f6f7f9; --panel:#fff; --text:#172033; --muted:#5f6b7a; --line:#d8dde7; --accent:#0f766e; --risk:#b42318; --code:#f8fafc; }
+      * { box-sizing:border-box; }
+      body { margin:0; background:var(--bg); color:var(--text); font-family:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; line-height:1.55; }
+      main { width:min(1280px, calc(100vw - 32px)); margin:0 auto; padding:28px 0 56px; }
+      h1 { margin:0 0 16px; font-size:30px; letter-spacing:0; }
+      h2 { margin:24px 0 10px; border-top:1px solid var(--line); padding-top:20px; font-size:21px; letter-spacing:0; }
+      h3 { margin:18px 0 8px; font-size:16px; letter-spacing:0; }
+      p, li { color:var(--muted); }
+      table { width:100%; border-collapse:collapse; margin:10px 0 16px; background:var(--panel); border:1px solid var(--line); }
+      th, td { border-top:1px solid var(--line); padding:8px 10px; text-align:left; vertical-align:top; font-size:13px; }
+      th { background:#eef2f7; color:#344054; font-weight:650; }
+      code { background:var(--code); border:1px solid var(--line); border-radius:4px; padding:1px 4px; }
+      pre { white-space:pre-wrap; background:var(--code); border:1px solid var(--line); border-radius:6px; padding:12px; overflow:auto; }
+      section { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:18px; margin:14px 0; }
+      .report { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:22px; }
+      @media (max-width: 720px) { main { width:min(100vw - 20px, 1280px); } table { display:block; overflow-x:auto; } h1 { font-size:25px; } }
+    </style>
+  </head>
+  <body><main><article class="report">${body}</article></main></body>
+</html>`;
+}
+
+function markdownInsightTable(
+  insights: Array<{
+    conclusion: string;
+    evidence: string[];
+    explanation: string;
+    risk: string;
+    nextAction: string;
+    priority: "P0" | "P1" | "P2" | "P3";
+    projects: string[];
+    dataQualityNote: string;
+  }>,
+  ctx: ReturnType<typeof createI18n>
+): string[] {
+  if (!insights.length) return [`- ${t(ctx, "report.render.emptySection")}`];
+  return [
+    "| Priority | Conclusion | Evidence | Explanation | Risk | Next action | Projects | Data quality |",
+    "| --- | --- | --- | --- | --- | --- | --- | --- |",
+    ...insights.map((item) =>
+      `| ${escapeMd(formatPriority(ctx, item.priority))} | ${escapeMd(item.conclusion)} | ${escapeMd(compactList(item.evidence))} | ${escapeMd(item.explanation)} | ${escapeMd(item.risk)} | ${escapeMd(item.nextAction)} | ${escapeMd(compactList(item.projects))} | ${escapeMd(item.dataQualityNote)} |`
+    )
+  ];
+}
+
+function markdownProjectRadar(items: Array<{
+  project: string;
+  role: string;
+  topics: string[];
+  judgment: string;
+  evidence: string[];
+  risk: string;
+  nextAction: string;
+  priority: string;
+}>): string[] {
+  if (!items.length) return ["- No project radar evidence."];
+  return [
+    "| Project | Role | Topics | Judgment | Evidence | Risk | Next action | Priority |",
+    "| --- | --- | --- | --- | --- | --- | --- | --- |",
+    ...items.map((item) =>
+      `| ${escapeMd(item.project)} | ${escapeMd(item.role)} | ${escapeMd(compactList(item.topics))} | ${escapeMd(item.judgment)} | ${escapeMd(compactList(item.evidence))} | ${escapeMd(item.risk)} | ${escapeMd(item.nextAction)} | ${escapeMd(item.priority)} |`
+    )
+  ];
+}
+
+function markdownTopicOverview(items: Array<{
+  topic: string;
+  involvedProjects: string[];
+  maturitySummary: string;
+  strongestProject: string;
+  biggestGap: string;
+  platformization: string;
+  nextAction: string;
+  priority: "P0" | "P1" | "P2" | "P3";
+  evidence: string[];
+}>, ctx: ReturnType<typeof createI18n>): string[] {
+  if (!items.length) return [`- ${t(ctx, "report.render.emptySection")}`];
+  return [
+    "| Topic | Projects | Maturity | Strongest project | Biggest gap | Platformization | Next action | Priority | Evidence |",
+    "| --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+    ...items.map((item) =>
+      `| ${escapeMd(item.topic)} | ${escapeMd(compactList(item.involvedProjects))} | ${escapeMd(item.maturitySummary)} | ${escapeMd(item.strongestProject)} | ${escapeMd(item.biggestGap)} | ${escapeMd(item.platformization)} | ${escapeMd(item.nextAction)} | ${escapeMd(formatPriority(ctx, item.priority))} | ${escapeMd(compactList(item.evidence))} |`
+    )
+  ];
+}
+
+function markdownRagFull(
+  rag: NonNullable<InsightReport["fullNarrative"]>["rag"],
+  ctx: ReturnType<typeof createI18n>
+): string[] {
+  return [
+    `### ${t(ctx, "report.section.ragProjectMaturity")}`,
+    "",
+    "| Project | Maturity | Evidence files | Implemented dimensions | Missing critical dimensions | Risk | Next action |",
+    "| --- | --- | --- | --- | --- | --- | --- |",
+    ...rag.projects.map((item) =>
+      `| ${escapeMd(item.project)} | ${escapeMd(String(item.maturity))} | ${escapeMd(compactList(item.evidenceFiles))} | ${escapeMd(compactList(item.implementedDimensions))} | ${escapeMd(compactList(item.missingCriticalDimensions))} | ${escapeMd(item.risk)} | ${escapeMd(item.nextAction)} |`
+    ),
+    "",
+    `### ${t(ctx, "report.section.ragArchitectureGaps")}`,
+    "",
+    "| Dimension | Projects with evidence | Missing projects | Evidence | Platformize | Interpretation |",
+    "| --- | --- | --- | --- | --- | --- |",
+    ...rag.dimensions.map((item) =>
+      `| ${escapeMd(item.dimension)} | ${escapeMd(compactList(item.projectsWithEvidence))} | ${escapeMd(compactList(item.projectsMissing))} | ${escapeMd(compactList(item.evidence))} | ${item.platformize ? "yes" : "no"} | ${escapeMd(item.interpretation)} |`
+    ),
+    "",
+    `### ${t(ctx, "report.section.ragRoadmap")}`,
+    "",
+    `- Reference project: ${rag.roadmap.referenceProject}`,
+    `- Not recommended as reference: ${compactList(rag.roadmap.rejectedReferences)}`,
+    `- Shared modules: ${compactList(rag.roadmap.sharedModules)}`,
+    `- Business boundaries: ${compactList(rag.roadmap.businessBoundaries)}`,
+    "",
+    ...markdownListBlock(rag.roadmap.phaseOne, "Phase 1"),
+    ...markdownListBlock(rag.roadmap.phaseTwo, "Phase 2"),
+    ...markdownListBlock(rag.roadmap.phaseThree, "Phase 3"),
+    ...markdownListBlock(rag.roadmap.defer, "Do not do yet")
+  ];
+}
+
+function markdownTopicDimensionTable(items: Array<{
+  dimension: string;
+  currentState: string;
+  evidence: string[];
+  risk: string;
+  nextAction: string;
+}>): string[] {
+  if (!items.length) return ["- No dimension evidence."];
+  return [
+    "| Dimension | Current state | Evidence | Risk | Next action |",
+    "| --- | --- | --- | --- | --- |",
+    ...items.map((item) =>
+      `| ${escapeMd(item.dimension)} | ${escapeMd(item.currentState)} | ${escapeMd(compactList(item.evidence))} | ${escapeMd(item.risk)} | ${escapeMd(item.nextAction)} |`
+    )
+  ];
+}
+
+function markdownTopicFocused(
+  report: InsightReport,
+  topicNames: string[],
+  ctx: ReturnType<typeof createI18n>
+): string[] {
+  const topics = report.deepTopics.filter((topic) => topicNames.includes(topic.topic));
+  if (!topics.length) return [`- ${t(ctx, "report.render.emptySection")}`];
+  return topics.flatMap((topic) => [
+    `### ${topic.topic}`,
+    "",
+    ...markdownList(topic.crossProjectFindings, t(ctx, "report.render.emptySection")),
+    "",
+    "| Project | Maturity | Implemented dimensions | Missing dimensions | Risks | Next action | Evidence |",
+    "| --- | --- | --- | --- | --- | --- | --- |",
+    ...topic.projectMaturity.map((item) =>
+      `| ${escapeMd(item.projectName)} | ${escapeMd(formatMaturity(ctx, item.maturity))} | ${escapeMd(compactList(item.implementedDimensions))} | ${escapeMd(compactList(item.missingDimensions))} | ${escapeMd(compactList(item.risks))} | ${escapeMd(compactList(item.recommendedNextActions))} | ${escapeMd(compactList(item.evidence.map((evidence) => evidence.snippet).slice(0, 3)))} |`
+    ),
+    ""
+  ]);
+}
+
+function markdownProblemTable(items: Array<{
+  category: string;
+  count: number;
+  projects: string[];
+  snippet: string;
+  rootCause: string;
+  fixStrategy: string;
+  needsAgentRule: boolean;
+}>): string[] {
+  return [
+    "| Category | Count | Projects | Snippet | Root cause | Fix strategy | AGENTS.md rule needed |",
+    "| --- | --- | --- | --- | --- | --- | --- |",
+    ...items.map((item) =>
+      `| ${escapeMd(item.category)} | ${item.count} | ${escapeMd(compactList(item.projects))} | ${escapeMd(item.snippet)} | ${escapeMd(item.rootCause)} | ${escapeMd(item.fixStrategy)} | ${item.needsAgentRule ? "yes" : "no"} |`
+    )
+  ];
+}
+
+function markdownAgentRulesFull(items: Array<{
+  title: string;
+  ruleText: string;
+  reason: string;
+  evidence: string[];
+  appliesTo: string;
+  severity: string;
+  target: string;
+}>): string[] {
+  if (!items.length) return ["- No AGENTS.md suggestions."];
+  return items.flatMap((item, index) => [
+    `### ${index + 1}. ${item.title}`,
+    "",
+    `- Target: ${item.target}`,
+    `- Severity: ${item.severity}`,
+    `- Applies to: ${item.appliesTo}`,
+    `- Reason: ${item.reason}`,
+    "",
+    "```text",
+    item.ruleText,
+    "```",
+    "",
+    ...markdownListBlock(item.evidence, "Evidence")
+  ]);
+}
+
+function markdownNextPrompts(
+  prompts: Array<{ title: string; prompt: string; evidence: string[]; priority: "P0" | "P1" | "P2" | "P3" }>,
+  ctx: ReturnType<typeof createI18n>
+): string[] {
+  return prompts.flatMap((item, index) => [
+    `### ${index + 1}. ${item.title}`,
+    "",
+    `- Priority: ${formatPriority(ctx, item.priority)}`,
+    "",
+    "```text",
+    item.prompt,
+    "```",
+    "",
+    ...markdownListBlock(item.evidence, "Evidence")
+  ]);
+}
+
+function markdownEvidenceIndex(items: Array<{
+  project: string;
+  filePath: string;
+  snippet: string;
+  signal: string;
+  topic: string;
+  confidence: string;
+}>): string[] {
+  if (!items.length) return ["- No evidence snippets were collected."];
+  return [
+    "| Project | File | Topic | Signal | Confidence | Snippet |",
+    "| --- | --- | --- | --- | --- | --- |",
+    ...items.slice(0, 200).map((item) =>
+      `| ${escapeMd(item.project)} | ${escapeMd(item.filePath)} | ${escapeMd(item.topic)} | ${escapeMd(item.signal)} | ${escapeMd(item.confidence)} | ${escapeMd(item.snippet)} |`
+    )
+  ];
+}
+
+function markdownListBlock(items: string[], title: string): string[] {
+  return [`### ${title}`, "", ...markdownList(items, "none"), ""];
+}
+
+function compactList(items: string[] | undefined): string {
+  const cleaned = (items ?? []).filter(Boolean);
+  return cleaned.length ? cleaned.slice(0, 8).join("; ") : "not available";
+}
+
+function escapeMd(value: string): string {
+  return String(value).replace(/\|/g, "\\|").replace(/\n+/g, " ").trim();
+}
+
+function markdownToHtml(markdown: string): string {
+  const lines = markdown.split("\n");
+  const html: string[] = [];
+  let inCode = false;
+  let table: string[] = [];
+  const flushTable = () => {
+    if (!table.length) return;
+    html.push(renderMarkdownTable(table));
+    table = [];
+  };
+  for (const line of lines) {
+    if (line.startsWith("```")) {
+      flushTable();
+      html.push(inCode ? "</pre>" : "<pre>");
+      inCode = !inCode;
+      continue;
+    }
+    if (inCode) {
+      html.push(escapeHtml(line));
+      continue;
+    }
+    if (line.startsWith("|")) {
+      table.push(line);
+      continue;
+    }
+    flushTable();
+    if (line.startsWith("# ")) html.push(`<h1>${escapeHtml(line.slice(2))}</h1>`);
+    else if (line.startsWith("## ")) html.push(`<h2>${escapeHtml(line.slice(3))}</h2>`);
+    else if (line.startsWith("### ")) html.push(`<h3>${escapeHtml(line.slice(4))}</h3>`);
+    else if (line.startsWith("- ")) html.push(`<p>• ${escapeHtml(line.slice(2))}</p>`);
+    else if (line.trim()) html.push(`<p>${escapeHtml(line)}</p>`);
+  }
+  flushTable();
+  return html.join("\n");
+}
+
+function renderMarkdownTable(lines: string[]): string {
+  const rows = lines
+    .filter((line) => !/^\|\s*-/.test(line))
+    .map((line) => line.split("|").slice(1, -1).map((cell) => cell.trim()));
+  if (!rows.length) return "";
+  const [header, ...body] = rows;
+  return `<table><thead><tr>${header.map((cell) => `<th>${escapeHtml(cell)}</th>`).join("")}</tr></thead><tbody>${body.map((row) => `<tr>${row.map((cell) => `<td>${escapeHtml(cell)}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
 }
 
 function sectionLabels(locale: SupportedLocale): Record<string, string> {

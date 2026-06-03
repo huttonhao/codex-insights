@@ -1,4 +1,5 @@
 import type { SupportedLocale } from "../i18n/localeResolver.js";
+import { tx } from "../i18n/index.js";
 import type { ProjectProfile } from "../model/project.js";
 import type {
   DeepTopicReport,
@@ -59,26 +60,17 @@ export function analyzeGenericTopicProjects(
     repeatedPatterns,
     duplicationRisks:
       repeatedPatterns.length > 0 && projectMaturity.length >= 2
-        ? [
-            locale === "zh-CN"
-              ? `${topic} 在多个项目中出现相似实现信号，存在重复建设和标准不一致风险。`
-              : `${topic} has similar implementation signals across projects, creating duplication and standardization risk.`
-          ]
+        ? [tx(locale, "topic.generic.duplicationRisk", { topic })]
         : [],
     recommendedReferenceProjects,
     recommendedArchitecture: {
-      name: `${topic} reference architecture`,
+      name: tx(locale, "topic.generic.architectureName", { topic }),
       stages: topicArchitectures[topic] ?? ["Discovery", "Design", "Implementation", "Quality Gate", "Operational Review"],
       rationale:
-        locale === "zh-CN"
-          ? [
-              `${topic} 应该用统一成熟度和证据标准判断，而不是只看关键词出现次数。`,
-              "公共能力适合抽成平台模块，业务差异保留在项目侧。"
-            ]
-          : [
-              `${topic} should be evaluated with evidence and maturity rules, not keyword counts alone.`,
-              "Shared capabilities can become platform modules while product-specific policy stays in projects."
-            ]
+        [
+          tx(locale, "topic.generic.architectureRationale.evidence", { topic }),
+          tx(locale, "topic.generic.architectureRationale.platform")
+        ]
     },
     platformizationRecommendation: buildGenericPlatformizationRecommendation({
       topic,
@@ -123,15 +115,14 @@ function createFindings(
   const implemented = projects.filter((project) =>
     ["prototype", "partial", "production_ready"].includes(project.maturity)
   ).length;
-  if (locale === "zh-CN") {
-    return [
-      `在扫描的 ${totalProjects} 个项目中，有 ${projects.length} 个项目出现 ${topic} 证据，其中 ${implemented} 个已经有实现信号。`,
-      `${topic} 的判断基于 evidence、文件路径、依赖、源码形态和质量证据，不只是关键词统计。`
-    ];
-  }
   return [
-    `${projects.length}/${totalProjects} projects contain ${topic} evidence; ${implemented} contain implementation signals.`,
-    `${topic} is evaluated using evidence, paths, dependencies, code patterns, and quality signals, not keyword counts alone.`
+    tx(locale, "topic.generic.finding", {
+      topic,
+      count: projects.length,
+      total: totalProjects,
+      implemented
+    }),
+    tx(locale, "topic.generic.findingEvidence", { topic })
   ];
 }
 
@@ -142,23 +133,13 @@ function createRisks(
   locale: SupportedLocale
 ): string[] {
   if (maturity === "mention_only") {
-    return [
-      locale === "zh-CN"
-        ? `${topic} 只停留在提及阶段，不能判断是否进入工程实现。`
-        : `${topic} is mention-only; implementation scope is unknown.`
-    ];
+    return [tx(locale, "topic.generic.mentionRisk", { topic })];
   }
   if (maturity === "design_only") {
-    return [
-      locale === "zh-CN"
-        ? `${topic} 目前主要是设计证据，缺少可验证的工程链路。`
-        : `${topic} is design-only and lacks a verifiable engineering path.`
-    ];
+    return [tx(locale, "topic.generic.designRisk", { topic })];
   }
   return missingDimensions.slice(0, 4).map((dimension) =>
-    locale === "zh-CN"
-      ? `${topic} 缺少 ${dimension} 证据。`
-      : `${topic} is missing ${dimension} evidence.`
+    tx(locale, "topic.generic.missingRisk", { topic, dimension })
   );
 }
 
@@ -169,18 +150,10 @@ function createActions(
   locale: SupportedLocale
 ): string[] {
   if (maturity === "production_ready") {
-    return [
-      locale === "zh-CN"
-        ? `把该项目作为 ${topic} 参考实现候选，抽取公共契约和质量门禁。`
-        : `Use this project as a ${topic} reference candidate and extract shared contracts and quality gates.`
-    ];
+    return [tx(locale, "topic.generic.productionAction", { topic })];
   }
   const first = missingDimensions[0] ?? "test/build/observability";
-  return [
-    locale === "zh-CN"
-      ? `下一步先补 ${first}，再提升 ${topic} 成熟度。`
-      : `Next, add ${first} before raising ${topic} maturity.`
-  ];
+  return [tx(locale, "topic.generic.nextAction", { topic, dimension: first })];
 }
 
 function findRepeatedSignals(projects: ProjectProfile[], topic: string): string[] {

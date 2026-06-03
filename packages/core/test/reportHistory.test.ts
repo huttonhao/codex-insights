@@ -24,7 +24,7 @@ afterEach(async () => {
 describe("report history", () => {
   it("creates deterministic date-versioned file bases", () => {
     expect(createReportFileBase(makeReport())).toBe(
-      "2026-06-02T08-00-00_repo_-repo_en-US"
+      "2026-06-02T08-00-00_repo_en-US"
     );
   });
 
@@ -37,8 +37,11 @@ describe("report history", () => {
     });
 
     expect(existsSync(saved.jsonPath)).toBe(true);
+    expect(existsSync(saved.latestJsonPath)).toBe(true);
     expect(saved.htmlPath).toBeDefined();
     expect(existsSync(saved.htmlPath!)).toBe(true);
+    expect(saved.latestHtmlPath).toBeDefined();
+    expect(existsSync(saved.latestHtmlPath!)).toBe(true);
 
     const parsed = JSON.parse(await readFile(saved.jsonPath, "utf8")) as InsightReport;
     expect(parsed.sessionId).toBe("session-1");

@@ -1,0 +1,23 @@
+export const topicMessages = {
+  "topic.generic.architectureName": "{topic} 参考架构",
+  "topic.generic.finding": "在扫描的 {total} 个项目中，有 {count} 个项目出现 {topic} 证据，其中 {implemented} 个已经有实现信号。",
+  "topic.generic.findingEvidence": "{topic} 的判断基于 evidence、文件路径、依赖、源码形态和质量证据，不只是关键词统计。",
+  "topic.generic.duplicationRisk": "{topic} 在多个项目中出现相似实现信号，存在重复建设和标准不一致风险。",
+  "topic.generic.architectureRationale.evidence": "{topic} 应该用统一成熟度和证据标准判断，而不是只看关键词出现次数。",
+  "topic.generic.architectureRationale.platform": "公共能力适合抽成平台模块，业务差异保留在项目侧。",
+  "topic.generic.mentionRisk": "{topic} 只停留在提及阶段，不能判断是否进入工程实现。",
+  "topic.generic.designRisk": "{topic} 目前主要是设计证据，缺少可验证的工程链路。",
+  "topic.generic.missingRisk": "{topic} 缺少 {dimension} 证据。",
+  "topic.generic.productionAction": "把该项目作为 {topic} 参考实现候选，抽取公共契约和质量门禁。",
+  "topic.generic.nextAction": "下一步先补 {dimension}，再提升 {topic} 成熟度。",
+  "topic.platform.no": "只有 {count} 个项目出现 {topic}，在出现重复证据前应保留在项目侧。",
+  "topic.platform.yes": "{topic} 横跨 {count} 个项目且有重复信号，应考虑平台化。",
+  "topic.platform.modules": "共享契约、质量门禁、运行指标",
+  "topic.platform.plan.start": "从最强 reference project 开始记录接口。",
+  "topic.platform.plan.extract": "有 test/build 证据后再抽公共接口。",
+  "topic.platform.plan.migrate": "一次迁移一个业务项目。",
+  "topic.platform.referenceFallback": "最强实现",
+  "topic.platform.plan.reference": "以 {reference} 作为 {topic} 参考实现候选。",
+  "topic.platform.plan.boundary": "先抽公共接口、配置模型和质量门禁，再迁移一个 partial 项目验证边界。",
+  "topic.platform.plan.productPolicy": "业务差异保留在项目侧，公共能力进入共享平台。"
+} as const;

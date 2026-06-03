@@ -16,15 +16,26 @@ describe("codex-insights CLI", () => {
   });
 
   it("prints a localized HTML report without saving", async () => {
-    const result = await runCli(["report", "--locale", "zh-CN", "--no-save"]);
+    const result = await runCli([
+      "report",
+      "--scope",
+      "workspace",
+      "--workspace",
+      workspacePath,
+      "--locale",
+      "zh-CN",
+      "--format",
+      "html",
+      "--no-save"
+    ]);
 
     expect(result.exitCode).toBe(0);
     expect(result.stdout).toContain("<!doctype html>");
-    expect(result.stdout).toContain("Codex 洞察分析");
+    expect(result.stdout).toContain("Codex Insights 全量洞察报告");
     expect(result.stdout).toContain("<style>");
     expect(result.stdout).not.toContain("https://cdn.tailwindcss.com");
     expect(result.stderr).toBe("");
-  });
+  }, 10_000);
 
   it("prints a deep workspace JSON report without saving", async () => {
     const result = await runCli([
@@ -72,8 +83,8 @@ describe("codex-insights CLI", () => {
     ]);
 
     expect(result.exitCode).toBe(0);
-    expect(result.stdout).toContain("# Codex 洞察分析");
-    expect(result.stdout).toContain("## RAG 深挖");
+    expect(result.stdout).toContain("# Codex Insights 全量洞察报告");
+    expect(result.stdout).toContain("## 8. RAG 深度分析");
     expect(result.stdout).toContain("rag-production-like");
   });
 

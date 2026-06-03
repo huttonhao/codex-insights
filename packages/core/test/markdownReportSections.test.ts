@@ -16,17 +16,14 @@ describe("Markdown report sections", () => {
     });
     const markdown = renderInsightsMarkdown(report, "en-US");
 
-    expect(markdown).toContain("## At a Glance");
-    expect(markdown).toContain("## What You Work On");
-    expect(markdown).toContain("## How You Use Codex");
-    expect(markdown).toContain("## Where Things Go Wrong");
-    expect(markdown).toContain("## Suggested AGENTS.md Additions");
-    expect(markdown).toContain("## Workspace Quality Matrix");
-    expect(markdown).toContain("## Deep Topic Reports");
-    expect(markdown).toContain("## Data Quality");
+    expect(markdown).toContain("## 0. Executive Summary");
+    expect(markdown).toContain("## 4. How You Use Codex");
+    expect(markdown).toContain("## 8. RAG Deep Analysis");
+    expect(markdown).toContain("## 16. Suggested AGENTS.md Rules");
+    expect(markdown).toContain("## 18. Data Quality And Confidence");
 
     const zh = renderInsightsMarkdown({ ...report, locale: "zh-CN" }, "zh-CN");
-    expect(zh).toContain("## 总览");
-    expect(zh).toContain("## 工作区质量证据矩阵");
+    expect(zh).toContain("## 0. 执行摘要");
+    expect(zh).toContain("## 6. 工作区质量证据矩阵");
   });
 });

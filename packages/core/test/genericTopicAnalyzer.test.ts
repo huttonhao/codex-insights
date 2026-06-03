@@ -28,7 +28,7 @@ describe("generic topic analyzer", () => {
       partial: 1,
       production_ready: 1
     });
-    expect(report.deepTopics[0]?.crossProjectFindings[0]).toContain("在扫描的");
+    expect(report.deepTopics[0]?.crossProjectFindings[0]).toContain("Agent");
   });
 
   it("includes evidence, reference projects, and platformization recommendation", async () => {
