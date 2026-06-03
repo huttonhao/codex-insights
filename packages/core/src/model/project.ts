@@ -1,4 +1,5 @@
 import type { DataQuality } from "./dataQuality.js";
+import type { CommandEvidenceSummary } from "./command.js";
 import type { Evidence } from "./evidence.js";
 import type { TopicMention, TopicMaturity } from "./topic.js";
 
@@ -20,6 +21,7 @@ export interface ProjectProfile {
   topics: TopicMention[];
   evidence: Evidence[];
   maturityByTopic: Record<string, TopicMaturity>;
+  commandEvidence?: CommandEvidenceSummary;
   files: ScannedFile[];
 }
 

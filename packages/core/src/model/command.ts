@@ -3,7 +3,14 @@ import type { DataQuality } from "./dataQuality.js";
 export interface CommandEvidence {
   command: string;
   category: "test" | "build" | "lint" | "typecheck" | "docker" | "other";
-  source: "session" | "package.json" | "git-diff" | "ci" | "manual";
+  source:
+    | "session"
+    | "package.json"
+    | "git-diff"
+    | "ci"
+    | "manual"
+    | "test-file"
+    | "build-config";
   exitCode?: number;
   startedAt?: string;
   completedAt?: string;

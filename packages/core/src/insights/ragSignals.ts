@@ -85,7 +85,7 @@ export const ragKeywordSignals = [
 export function detectRagDimensions(files: ScannedFile[]): Set<RagDimension> {
   const dimensions = new Set<RagDimension>();
   const combined = files
-    .map((file) => `${file.relativePath}\n${file.content}`)
+    .map((file) => `${file.relativePath}\n${positiveContent(file.content)}`)
     .join("\n")
     .toLowerCase();
 
@@ -111,6 +111,19 @@ export function detectRagDimensions(files: ScannedFile[]): Set<RagDimension> {
   addIf(dimensions, "tests / CI", /(^|\/)(tests?|__tests__)\/|\.test\.|\.spec\.|vitest|pytest|github\/workflows|ci/.test(combined));
 
   return dimensions;
+}
+
+function positiveContent(content: string): string {
+  return content
+    .split(/\r?\n/)
+    .filter((line) => !isNegativeRagSignal(line))
+    .join("\n");
+}
+
+function isNegativeRagSignal(line: string): boolean {
+  return /(?:\b(no|not|without|missing|lacks?)\b|缺少|没有).{0,100}\b(rag|retriever|retrieval|evaluation|eval|ci|embedding|vector|chunk|indexing|citation|observability|implementation|source)\b/i.test(
+    line
+  );
 }
 
 function addIf(

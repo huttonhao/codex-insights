@@ -1,5 +1,6 @@
-import { readFile } from "node:fs/promises";
-import { join } from "node:path";
+import { existsSync } from "node:fs";
+import { readdir, readFile, stat } from "node:fs/promises";
+import { join, relative } from "node:path";
 import {
   createDataQualityRecord,
   type DataQuality
@@ -13,6 +14,7 @@ import type { CodexSession } from "./codexSessionCollector.js";
 export interface CollectCommandEvidenceOptions {
   session?: CodexSession;
   repoPath?: string;
+  suppressUnknownDataQuality?: boolean;
 }
 
 export async function collectCommandEvidence(
@@ -38,6 +40,9 @@ export async function collectCommandEvidence(
 
   if (options.repoPath) {
     commands.push(...(await collectPackageScripts(options.repoPath, dataQuality)));
+    commands.push(...(await collectCiCommands(options.repoPath)));
+    commands.push(...(await collectTestFileEvidence(options.repoPath)));
+    commands.push(...(await collectBuildConfigEvidence(options.repoPath)));
   }
 
   const executedTests = commands.filter(
@@ -48,7 +53,7 @@ export async function collectCommandEvidence(
     ? undefined
     : "No executed test command was found in session or command history.";
 
-  if (!testsRunKnown) {
+  if (!testsRunKnown && !options.suppressUnknownDataQuality) {
     dataQuality.push(
       createDataQualityRecord({
         source: "test-evidence",
@@ -122,9 +127,14 @@ async function collectPackageScripts(
   repoPath: string,
   dataQuality: DataQuality[]
 ): Promise<CommandEvidence[]> {
+  const packageJsonPath = join(repoPath, "package.json");
+  if (!existsSync(packageJsonPath)) {
+    return [];
+  }
+
   try {
     const packageJson = JSON.parse(
-      await readFile(join(repoPath, "package.json"), "utf8")
+      await readFile(packageJsonPath, "utf8")
     ) as { scripts?: Record<string, string> };
     const scripts = packageJson.scripts ?? {};
     return Object.keys(scripts)
@@ -141,9 +151,107 @@ async function collectPackageScripts(
         source: "package-scripts",
         status: "missing",
         reason: `Unable to read package scripts: ${error instanceof Error ? error.message : String(error)}`,
-        attemptedSources: [join(repoPath, "package.json")]
+        attemptedSources: [packageJsonPath]
       })
     );
     return [];
   }
+}
+
+async function collectCiCommands(repoPath: string): Promise<CommandEvidence[]> {
+  const workflowsDir = join(repoPath, ".github", "workflows");
+  if (!existsSync(workflowsDir)) {
+    return [];
+  }
+
+  const files = await listFiles(workflowsDir, repoPath, 50);
+  const commands: CommandEvidence[] = [];
+  for (const file of files.filter((item) => /\.(ya?ml)$/i.test(item.relativePath))) {
+    const content = await readFile(file.absolutePath, "utf8").catch(() => "");
+    for (const line of content.split(/\r?\n/)) {
+      const match = line.match(/run:\s*(.+)$/);
+      if (!match) {
+        continue;
+      }
+      const command = match[1]?.trim().replace(/^["']|["']$/g, "");
+      if (!command) {
+        continue;
+      }
+      const category = classifyCommand(command);
+      if (category === "other") {
+        continue;
+      }
+      commands.push({
+        command,
+        category,
+        source: "ci",
+        confidence: "medium"
+      });
+    }
+  }
+  return commands;
+}
+
+async function collectTestFileEvidence(repoPath: string): Promise<CommandEvidence[]> {
+  const files = await listFiles(repoPath, repoPath, 300);
+  return files
+    .filter((file) => /(^|\/)(tests?|__tests__)\/|\.test\.|\.spec\./.test(file.relativePath))
+    .map((file) => ({
+      command: `test file: ${file.relativePath}`,
+      category: "test" as const,
+      source: "test-file" as const,
+      confidence: "medium" as const
+    }));
+}
+
+async function collectBuildConfigEvidence(repoPath: string): Promise<CommandEvidence[]> {
+  const files = await listFiles(repoPath, repoPath, 120);
+  const buildConfigs = files.filter((file) =>
+    /(^|\/)(tsconfig\.json|vite\.config\.[cm]?[tj]s|webpack\.config\.[cm]?[tj]s|rollup\.config\.[cm]?[tj]s|pom\.xml|build\.gradle|settings\.gradle|go\.mod|Cargo\.toml|pyproject\.toml|Dockerfile)$/.test(
+      file.relativePath
+    )
+  );
+  return buildConfigs.map((file) => ({
+    command: `build config: ${file.relativePath}`,
+    category: "build" as const,
+    source: "build-config" as const,
+    confidence: "low" as const
+  }));
+}
+
+async function listFiles(
+  root: string,
+  repoPath: string,
+  maxFiles: number
+): Promise<Array<{ absolutePath: string; relativePath: string }>> {
+  const results: Array<{ absolutePath: string; relativePath: string }> = [];
+  const ignored = new Set(["node_modules", ".git", "dist", "build", "coverage"]);
+
+  async function visit(path: string): Promise<void> {
+    if (results.length >= maxFiles) {
+      return;
+    }
+    const entries = await readdir(path, { withFileTypes: true }).catch(() => []);
+    for (const entry of entries) {
+      if (results.length >= maxFiles || ignored.has(entry.name)) {
+        continue;
+      }
+      const absolutePath = join(path, entry.name);
+      if (entry.isDirectory()) {
+        await visit(absolutePath);
+        continue;
+      }
+      const fileStat = await stat(absolutePath).catch(() => undefined);
+      if (!fileStat || fileStat.size > 256 * 1024) {
+        continue;
+      }
+      results.push({
+        absolutePath,
+        relativePath: relative(repoPath, absolutePath)
+      });
+    }
+  }
+
+  await visit(root);
+  return results;
 }

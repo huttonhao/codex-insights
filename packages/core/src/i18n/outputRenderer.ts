@@ -130,9 +130,15 @@ export function renderInsightsMarkdown(
       locale === "zh-CN" ? "### 平台化建议" : "### Platformization",
       "",
       locale === "zh-CN"
-        ? `${rag.platformizationRecommendation.shouldPlatformize ? "建议平台化" : "暂不建议平台化"} - 建议以 ${rag.recommendedReferenceProjects[0] ?? "成熟度最高的项目"} 作为 reference implementation，优先抽公共 ingestion、chunking、embedding、index、retrieval、rerank、citation、evaluation、observability 和 tenant isolation 模块。`
+        ? `${rag.platformizationRecommendation.shouldPlatformize ? "建议平台化" : "暂不建议平台化"} - ${rag.platformizationRecommendation.reason}`
         : `${rag.platformizationRecommendation.shouldPlatformize ? "Yes" : "No"} - ${rag.platformizationRecommendation.reason}`
     );
+    if (locale === "zh-CN" && rag.platformizationRecommendation.migrationPlan.length) {
+      lines.push(
+        "",
+        ...rag.platformizationRecommendation.migrationPlan.map((item) => `- ${item}`)
+      );
+    }
   }
 
   lines.push(
@@ -181,6 +187,12 @@ function renderTopicOverview(report: InsightReport, locale: SupportedLocale): st
 
 function renderRagDeepDive(topic: DeepTopicReport, locale: SupportedLocale): string {
   const title = locale === "zh-CN" ? "RAG 深度分析" : "RAG Deep Dive";
+  const evidenceText =
+    locale === "zh-CN"
+      ? `在扫描项目中，有 ${topic.mentionedProjects}/${topic.totalProjects} 个项目出现 RAG 证据。`
+      : `${topic.mentionedProjects} of ${topic.totalProjects} projects contain RAG evidence.`;
+  const architectureTitle = locale === "zh-CN" ? "推荐架构" : "Recommended Architecture";
+  const evidenceTitle = locale === "zh-CN" ? "证据" : "Evidence";
   const projectRows = topic.projectMaturity
     .map(
       (project) => `<tr class="border-t border-zinc-200 align-top">
@@ -200,16 +212,16 @@ function renderRagDeepDive(topic: DeepTopicReport, locale: SupportedLocale): str
 
   return `<section class="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
     <h2 class="text-xl font-semibold">${escapeHtml(title)}</h2>
-    <p class="mt-3 text-sm leading-6 text-zinc-700">${topic.mentionedProjects} of ${topic.totalProjects} projects contain RAG evidence.</p>
+    <p class="mt-3 text-sm leading-6 text-zinc-700">${escapeHtml(evidenceText)}</p>
     <div class="mt-5 overflow-x-auto">
       <table class="min-w-full text-left text-sm">
         <thead><tr><th class="px-3 py-2">Project</th><th class="px-3 py-2">Maturity</th><th class="px-3 py-2">Dimensions</th><th class="px-3 py-2">Missing</th></tr></thead>
         <tbody>${projectRows}</tbody>
       </table>
     </div>
-    <h3 class="mt-6 text-lg font-semibold">Recommended Architecture</h3>
+    <h3 class="mt-6 text-lg font-semibold">${escapeHtml(architectureTitle)}</h3>
     <p class="mt-2 text-sm leading-6 text-zinc-700">${escapeHtml(topic.recommendedArchitecture.stages.join(" -> "))}</p>
-    <h3 class="mt-6 text-lg font-semibold">Evidence</h3>
+    <h3 class="mt-6 text-lg font-semibold">${escapeHtml(evidenceTitle)}</h3>
     <ul class="mt-3 space-y-2 text-sm leading-6">${evidence}</ul>
   </section>`;
 }

@@ -3,8 +3,9 @@ import { collectCodexSession } from "../collectors/codexSessionCollector.js";
 import { collectCommandEvidence } from "../collectors/commandEvidenceCollector.js";
 import { collectGitContext } from "../collectors/gitCollector.js";
 import { scanWorkspace } from "../collectors/workspaceScanner.js";
+import type { CommandEvidenceSummary } from "../model/command.js";
 import type { DataQuality } from "../model/dataQuality.js";
-import { mergeDataQuality } from "../model/dataQuality.js";
+import { createDataQualityRecord, mergeDataQuality } from "../model/dataQuality.js";
 import type {
   GenerateInsightsReportOptions,
   InsightReport,
@@ -101,7 +102,7 @@ export async function generateInsightsReport(
   let toolCalls = 0;
   let filesTouched = 0;
   let warnings = 0;
-  let commandEvidence = await collectCommandEvidence({ repoPath });
+  let commandEvidence: CommandEvidenceSummary;
 
   if (mode === "workspace") {
     const scan = await scanWorkspace({
@@ -113,10 +114,21 @@ export async function generateInsightsReport(
       include: options.include,
       exclude: options.exclude
     });
-    projects = scan.projects;
+    const projectCommandEvidence = await Promise.all(
+      scan.projects.map((project) =>
+        collectCommandEvidence({
+          repoPath: project.path,
+          suppressUnknownDataQuality: true
+        })
+      )
+    );
+    projects = scan.projects.map((project, index) => ({
+      ...project,
+      commandEvidence: projectCommandEvidence[index]
+    }));
     scanNumbers = scan.summary;
     dataQuality.push(...scan.dataQuality);
-    commandEvidence = await collectCommandEvidence();
+    commandEvidence = aggregateWorkspaceCommandEvidence(projectCommandEvidence);
   } else if (mode === "repo") {
     const git = await collectGitContext(repoPath);
     dataQuality.push(...git.dataQuality);
@@ -129,7 +141,11 @@ export async function generateInsightsReport(
       include: options.include,
       exclude: options.exclude
     });
-    projects = scan.projects;
+    commandEvidence = await collectCommandEvidence({ repoPath });
+    projects = scan.projects.map((project) => ({
+      ...project,
+      commandEvidence
+    }));
     scanNumbers = scan.summary;
     dataQuality.push(...scan.dataQuality);
     filesTouched = new Set([
@@ -137,7 +153,6 @@ export async function generateInsightsReport(
       ...git.stagedFiles,
       ...git.untrackedFiles
     ]).size;
-    commandEvidence = await collectCommandEvidence({ repoPath });
   } else {
     const session = await collectCodexSession({
       sessionFile: options.sessionFile,
@@ -157,7 +172,7 @@ export async function generateInsightsReport(
   dataQuality.push(...commandEvidence.dataQuality);
   const completedAt = options.now ?? new Date().toISOString();
   const deepTopics = options.deep
-    ? createDeepTopicReports(projects, options.topics)
+    ? createDeepTopicReports(projects, options.topics, options.locale)
     : [];
   const repository = createRepositoryInfo(mode, repoPath, workspacePath);
   const scanSummary: ScanSummary = {
@@ -219,10 +234,56 @@ function inferMode(options: GenerateInsightsReportOptions): "session" | "repo" |
 
 function createDeepTopicReports(
   projects: ProjectProfile[],
-  topics?: string[]
+  topics?: string[],
+  locale: InsightReport["locale"] = "en-US"
 ): DeepTopicReport[] {
   const requested = topics?.length ? topics : ["rag"];
-  return requested.includes("rag") ? [analyzeRagProjects(projects)] : [];
+  return requested.includes("rag") ? [analyzeRagProjects(projects, locale)] : [];
+}
+
+function aggregateWorkspaceCommandEvidence(
+  summaries: CommandEvidenceSummary[]
+): CommandEvidenceSummary {
+  const testCommands = summaries.flatMap((summary) => summary.testCommands);
+  const buildCommands = summaries.flatMap((summary) => summary.buildCommands);
+  const lintCommands = summaries.flatMap((summary) => summary.lintCommands);
+  const typecheckCommands = summaries.flatMap((summary) => summary.typecheckCommands);
+  const dockerCommands = summaries.flatMap((summary) => summary.dockerCommands);
+  const testsRunCount = summaries.reduce(
+    (count, summary) => count + (summary.testsRunCount ?? 0),
+    0
+  );
+  const testsRunKnown = summaries.some((summary) => summary.testsRunKnown);
+  const unknownReason = testsRunKnown
+    ? undefined
+    : "No executed test command was found across scanned workspace projects.";
+
+  return {
+    testsRunKnown,
+    testsRunCount: testsRunKnown ? testsRunCount : undefined,
+    testCommands,
+    buildCommands,
+    lintCommands,
+    typecheckCommands,
+    dockerCommands,
+    unknownReason,
+    dataQuality: testsRunKnown
+      ? []
+      : [
+          createDataQualityRecord({
+            source: "test-evidence",
+            status: "unavailable",
+            reason: unknownReason ?? "No executed test command was found.",
+            attemptedSources: [
+              "workspace project package.json scripts",
+              "workspace project CI files",
+              "workspace project test files",
+              "workspace project build config",
+              "session.commands"
+            ]
+          })
+        ]
+  };
 }
 
 function createRepositoryInfo(

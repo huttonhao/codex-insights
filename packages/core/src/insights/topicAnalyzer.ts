@@ -47,6 +47,9 @@ function analyzeSingleTopic(
   for (const file of input.files) {
     const lines = file.content.split(/\r?\n/);
     lines.forEach((line, index) => {
+      if (isNegativeTopicSignal(line, input.topic)) {
+        return;
+      }
       const lower = line.toLowerCase();
       for (const signal of signals.keywords) {
         if (lower.includes(signal.toLowerCase())) {
@@ -167,6 +170,22 @@ function isCodeSignal(filePath: string, line: string): boolean {
   return (
     /\.(ts|tsx|js|jsx|py|go|rs|java|kt|cs)$/i.test(filePath) &&
     /function|class|interface|const|async|def |return |import /.test(line)
+  );
+}
+
+function isNegativeTopicSignal(line: string, topic: string): boolean {
+  const normalizedTopic = topic.replace(/[-_]/g, " ");
+  const negativeLead = /(?:\b(no|not|without|missing|lacks?)\b|缺少|没有)/i;
+  if (!negativeLead.test(line)) {
+    return false;
+  }
+
+  const lower = line.toLowerCase();
+  return (
+    lower.includes(normalizedTopic.toLowerCase()) ||
+    /\b(implementation|source|architecture|coverage|pipeline|retriever|evaluation|eval|ci|auth|billing|security|observability|workflow|i18n|agent|gateway)\b/i.test(
+      line
+    )
   );
 }
 
