@@ -1,0 +1,76 @@
+# Normalize text files across macOS, Windows, and Linux.
+* text=auto eol=lf
+
+# Keep common project text formats in UTF-8 in the working tree.
+*.adoc text working-tree-encoding=UTF-8 eol=lf
+*.bash text working-tree-encoding=UTF-8 eol=lf
+*.bat text working-tree-encoding=UTF-8 eol=lf
+*.c text working-tree-encoding=UTF-8 eol=lf
+*.cfg text working-tree-encoding=UTF-8 eol=lf
+*.cmd text working-tree-encoding=UTF-8 eol=lf
+*.conf text working-tree-encoding=UTF-8 eol=lf
+*.cpp text working-tree-encoding=UTF-8 eol=lf
+*.cs text working-tree-encoding=UTF-8 eol=lf
+*.css text working-tree-encoding=UTF-8 eol=lf
+*.csv text working-tree-encoding=UTF-8 eol=lf
+*.editorconfig text working-tree-encoding=UTF-8 eol=lf
+*.env text working-tree-encoding=UTF-8 eol=lf
+*.gitattributes text working-tree-encoding=UTF-8 eol=lf
+*.gitignore text working-tree-encoding=UTF-8 eol=lf
+*.go text working-tree-encoding=UTF-8 eol=lf
+*.h text working-tree-encoding=UTF-8 eol=lf
+*.hpp text working-tree-encoding=UTF-8 eol=lf
+*.htm text working-tree-encoding=UTF-8 eol=lf
+*.html text working-tree-encoding=UTF-8 eol=lf
+*.ini text working-tree-encoding=UTF-8 eol=lf
+*.java text working-tree-encoding=UTF-8 eol=lf
+*.js text working-tree-encoding=UTF-8 eol=lf
+*.json text working-tree-encoding=UTF-8 eol=lf
+*.json5 text working-tree-encoding=UTF-8 eol=lf
+*.jsx text working-tree-encoding=UTF-8 eol=lf
+*.kt text working-tree-encoding=UTF-8 eol=lf
+*.kts text working-tree-encoding=UTF-8 eol=lf
+*.less text working-tree-encoding=UTF-8 eol=lf
+*.log text working-tree-encoding=UTF-8 eol=lf
+*.lua text working-tree-encoding=UTF-8 eol=lf
+*.mjs text working-tree-encoding=UTF-8 eol=lf
+*.md text working-tree-encoding=UTF-8 eol=lf
+*.mdx text working-tree-encoding=UTF-8 eol=lf
+*.php text working-tree-encoding=UTF-8 eol=lf
+*.pl text working-tree-encoding=UTF-8 eol=lf
+*.properties text working-tree-encoding=UTF-8 eol=lf
+*.ps1 text working-tree-encoding=UTF-8 eol=lf
+*.psd1 text working-tree-encoding=UTF-8 eol=lf
+*.psm1 text working-tree-encoding=UTF-8 eol=lf
+*.py text working-tree-encoding=UTF-8 eol=lf
+*.r text working-tree-encoding=UTF-8 eol=lf
+*.rb text working-tree-encoding=UTF-8 eol=lf
+*.rs text working-tree-encoding=UTF-8 eol=lf
+*.sass text working-tree-encoding=UTF-8 eol=lf
+*.scala text working-tree-encoding=UTF-8 eol=lf
+*.scss text working-tree-encoding=UTF-8 eol=lf
+*.sh text working-tree-encoding=UTF-8 eol=lf
+*.sql text working-tree-encoding=UTF-8 eol=lf
+*.svelte text working-tree-encoding=UTF-8 eol=lf
+*.swift text working-tree-encoding=UTF-8 eol=lf
+*.template text working-tree-encoding=UTF-8 eol=lf
+*.toml text working-tree-encoding=UTF-8 eol=lf
+*.ts text working-tree-encoding=UTF-8 eol=lf
+*.tsx text working-tree-encoding=UTF-8 eol=lf
+*.txt text working-tree-encoding=UTF-8 eol=lf
+*.vue text working-tree-encoding=UTF-8 eol=lf
+*.xml text working-tree-encoding=UTF-8 eol=lf
+*.yml text working-tree-encoding=UTF-8 eol=lf
+*.yaml text working-tree-encoding=UTF-8 eol=lf
+*.zsh text working-tree-encoding=UTF-8 eol=lf
+Dockerfile text working-tree-encoding=UTF-8 eol=lf
+Makefile text working-tree-encoding=UTF-8 eol=lf
+
+# Do not try to normalize binary assets.
+*.gif binary
+*.ico binary
+*.jpg binary
+*.jpeg binary
+*.pdf binary
+*.png binary
+*.webp binary
